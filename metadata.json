@@ -1,0 +1,6 @@
+{
+  "name": "成品进销存管理系统",
+  "description": "基于 React + Tailwind CSS 的成品进销存管理系统，支持多角色在线协作、爆仓预警及实时仓位地图。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
