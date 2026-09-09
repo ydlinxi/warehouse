@@ -13,6 +13,7 @@ import {
   Map,
   Settings,
   Smartphone,
+  BookOpen,
   X
 } from 'lucide-react';
 
@@ -43,6 +44,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const externalMenuItems = [
     { id: 'mobileForm', name: '扫码填报端', icon: Smartphone, badge: '二维码' },
+  ];
+
+  const helpMenuItems = [
+    { id: 'manual', name: '系统操作说明', icon: BookOpen },
   ];
 
   return (
@@ -153,6 +158,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {item.badge}
                   </span>
                 )}
+              </button>
+            );
+          })}
+
+          <div className="h-4"></div>
+          <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">帮助与支持</span>
+          
+          {helpMenuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentTab === item.id;
+            
+            return (
+              <button
+                id={`nav-item-${item.id}`}
+                key={item.id}
+                onClick={() => {
+                  setCurrentTab(item.id);
+                  if (onCloseMobile) onCloseMobile();
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40 translate-x-1'
+                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
+                }`}
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                  <span>{item.name}</span>
+                </div>
               </button>
             );
           })}

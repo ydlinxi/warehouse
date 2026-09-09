@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useInventoryStore } from '../store/useInventoryStore';
 import { formatters } from '../db';
-import { PackagePlus, PackageMinus, CheckCircle2, AlertCircle } from 'lucide-react';
+import { PackagePlus, PackageMinus, CheckCircle2, AlertCircle, Search } from 'lucide-react';
 
 export const MobileRecordForm: React.FC = () => {
   const { stats, positions, demands, recordInbound, recordOutbound } = useInventoryStore();
-  const [activeMode, setActiveMode] = useState<'inbound' | 'outbound'>('inbound');
+  const [activeMode, setActiveMode] = useState<'inbound' | 'outbound' | 'search'>('inbound');
   
   // Local form state
   const [positionCode, setPositionCode] = useState('');
@@ -15,6 +15,7 @@ export const MobileRecordForm: React.FC = () => {
   const [line, setLine] = useState('线别A-01');
   const [quality, setQuality] = useState<'OQC验Pass' | '待复检' | '不合格'>('OQC验Pass');
   const [note, setNote] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -33,8 +34,20 @@ export const MobileRecordForm: React.FC = () => {
     return demands.filter(d => d.position_code === null);
   }, [demands]);
 
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return occupiedPositions.filter(p => 
+      p.order_no?.toLowerCase().includes(q) || 
+      p.model?.toLowerCase().includes(q) ||
+      p.code.toLowerCase().includes(q)
+    );
+  }, [occupiedPositions, searchQuery]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeMode === 'search') return;
+    
     setMessage({ type: '', text: '' });
     
     // Validate common
@@ -118,50 +131,107 @@ export const MobileRecordForm: React.FC = () => {
           <button
             type="button"
             onClick={() => { setActiveMode('inbound'); setMessage({type:'',text:''}); setPositionCode(''); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 font-bold text-sm transition-colors cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-4 font-bold text-sm transition-colors cursor-pointer ${
               activeMode === 'inbound' 
                 ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' 
                 : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <PackagePlus size={18} />
-            入库登记
+            <PackagePlus size={16} />
+            入库
           </button>
           <button
             type="button"
             onClick={() => { setActiveMode('outbound'); setMessage({type:'',text:''}); setPositionCode(''); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 font-bold text-sm transition-colors cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-4 font-bold text-sm transition-colors cursor-pointer ${
               activeMode === 'outbound' 
                 ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/30' 
                 : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <PackageMinus size={18} />
-            出库登记
+            <PackageMinus size={16} />
+            出库
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveMode('search'); setMessage({type:'',text:''}); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-4 font-bold text-sm transition-colors cursor-pointer ${
+              activeMode === 'search' 
+                ? 'text-sky-600 border-b-2 border-sky-600 bg-sky-50/30' 
+                : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <Search size={16} />
+            找货
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           
-          {/* Position Selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 block">目标仓位 *</label>
-            <select
-              value={positionCode}
-              onChange={(e) => setPositionCode(e.target.value)}
-              className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
-            >
-              <option value="">-- 请选择仓位 --</option>
-              {activeMode === 'inbound' 
-                ? availablePositions.map(p => <option key={p.code} value={p.code}>{p.code} (空闲)</option>)
-                : occupiedPositions.map(p => <option key={p.code} value={p.code}>{p.code} (已用)</option>)
-              }
-            </select>
-            <p className="text-[10px] text-slate-400">
-              {activeMode === 'inbound' ? '请选择一个空闲的仓位进行上架。' : '请选择需要扣减出库的实物仓位。'}
-            </p>
-          </div>
+          {activeMode === 'search' ? (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">通过订单号/型号/仓位查找</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="输入订单号..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full border-2 border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 outline-none transition-all font-semibold text-slate-700"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[50vh] overflow-y-auto pb-4">
+                {searchQuery.trim() === '' ? (
+                  <div className="text-center py-8 text-slate-400 text-sm">请输入关键词进行查找</div>
+                ) : searchResults.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 text-sm">暂无匹配的在库记录</div>
+                ) : (
+                  searchResults.map(p => (
+                    <div key={p.code} className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex justify-between items-center animate-in fade-in zoom-in-95">
+                      <div>
+                        <div className="font-bold text-sky-600 text-sm">{p.code}</div>
+                        <div className="text-xs text-slate-500 mt-0.5 font-mono">订单: {p.order_no} | {p.qty} PCS</div>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setActiveMode('outbound');
+                          setPositionCode(p.code);
+                        }}
+                        className="px-3 py-1.5 bg-white border border-slate-200 shadow-sm rounded-lg text-xs font-bold text-slate-600 hover:text-emerald-600 hover:border-emerald-200 cursor-pointer transition-colors"
+                      >
+                        去出库
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Position Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">目标仓位 *</label>
+                <select
+                  value={positionCode}
+                  onChange={(e) => setPositionCode(e.target.value)}
+                  className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
+                >
+                  <option value="">-- 请选择仓位 --</option>
+                  {activeMode === 'inbound' 
+                    ? availablePositions.map(p => <option key={p.code} value={p.code}>{p.code} (空闲)</option>)
+                    : occupiedPositions.map(p => <option key={p.code} value={p.code}>{p.code} (已用)</option>)
+                  }
+                </select>
+                <p className="text-[10px] text-slate-400">
+                  {activeMode === 'inbound' ? '请选择一个空闲的仓位进行上架。' : '请选择需要扣减出库的实物仓位。'}
+                </p>
+              </div>
 
           {activeMode === 'inbound' && (
             <>
@@ -321,8 +391,9 @@ export const MobileRecordForm: React.FC = () => {
           >
             {activeMode === 'inbound' ? '提交入库记录' : '提交出库记录'}
           </button>
-
-        </form>
+        </>
+      )}
+    </form>
       </div>
     </div>
   );

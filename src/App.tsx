@@ -14,6 +14,7 @@ import { PositionMap } from './components/PositionMap';
 import { SystemConfig } from './components/SystemConfig';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { MobileRecordForm } from './components/MobileRecordForm';
+import { SystemManual } from './components/SystemManual';
 
 import { useInventoryStore } from './store/useInventoryStore';
 import { Shield, AlertTriangle, Clock, Search, Menu } from 'lucide-react';
@@ -61,6 +62,8 @@ export default function App() {
         return <SystemConfig />;
       case 'mobileForm':
         return <MobileRecordForm />;
+      case 'manual':
+        return <SystemManual />;
       default:
         return <Dashboard onNavigate={handleNavigate} />;
     }
