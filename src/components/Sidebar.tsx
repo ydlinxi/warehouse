@@ -12,21 +12,24 @@ import {
   Database,
   Map,
   Settings,
-  Users,
-  ShieldAlert
+  Smartphone,
+  X
 } from 'lucide-react';
-import { UserRole } from '../types';
 
 interface SidebarProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
   isWarning: boolean;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   setCurrentTab,
-  isWarning
+  isWarning,
+  isOpenMobile = false,
+  onCloseMobile
 }) => {
   const menuItems = [
     { id: 'map', name: '首页 / 仓位地图', icon: Map, badge: isWarning ? '爆仓预警' : undefined },
@@ -38,68 +41,138 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'system', name: '系统配置', icon: Settings },
   ];
 
+  const externalMenuItems = [
+    { id: 'mobileForm', name: '扫码填报端', icon: Smartphone, badge: '二维码' },
+  ];
+
   return (
-    <div id="sidebar-container" className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen border-r border-slate-800">
-      {/* Brand Header */}
-      <div id="sidebar-header" className="p-5 border-b border-slate-800 flex items-center space-x-3 bg-slate-950">
-        <div className="p-2 bg-indigo-600 rounded-lg text-white">
-          <Database size={20} />
-        </div>
-        <div>
-          <h1 className="font-bold text-sm leading-tight text-white tracking-wide">成品进销存管理系统</h1>
-          <span className="text-xs text-slate-400">Web 企业级 v1.1</span>
-        </div>
-      </div>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isOpenMobile && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 md:hidden"
+        />
+      )}
 
-      {/* Navigation List */}
-      <nav id="sidebar-nav" className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">系统模块</span>
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id;
-          
-          return (
+      {/* Sidebar Drawer Container */}
+      <div
+        id="sidebar-container"
+        className={`fixed md:static inset-y-0 left-0 w-64 bg-slate-900 text-slate-100 flex flex-col h-screen border-r border-slate-800 z-50 transition-transform duration-200 ${
+          isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        {/* Brand Header */}
+        <div id="sidebar-header" className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-indigo-600 rounded-lg text-white">
+              <Database size={20} />
+            </div>
+            <div>
+              <h1 className="font-bold text-sm leading-tight text-white tracking-wide">成品进销存管理系统</h1>
+              <span className="text-xs text-slate-400">Web 企业级 v1.1</span>
+            </div>
+          </div>
+          {onCloseMobile && (
             <button
-              id={`nav-item-${item.id}`}
-              key={item.id}
-              onClick={() => setCurrentTab(item.id)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                isActive
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40 translate-x-1'
-                  : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
-              }`}
+              onClick={onCloseMobile}
+              className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
             >
-              <div className="flex items-center space-x-2.5">
-                <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
-                <span>{item.name}</span>
-              </div>
-              {item.badge && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                  item.id === 'map' && isWarning 
-                    ? 'bg-rose-500 text-white animate-bounce' 
-                    : 'bg-slate-700 text-slate-300'
-                }`}>
-                  {item.badge}
-                </span>
-              )}
+              <X size={18} />
             </button>
-          );
-        })}
-      </nav>
-
-      {/* Footer System Status */}
-      <div id="sidebar-footer" className="p-4 border-t border-slate-800 bg-slate-950 text-xs text-slate-500 flex flex-col space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span>系统状态</span>
-          <span className="flex items-center text-emerald-400 gap-1 font-semibold text-[10px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>运行中</span>
-          </span>
+          )}
         </div>
-        <div className="text-[10px] text-slate-400 font-mono">
-          <span>日期: 2026/08/25</span>
+
+        {/* Navigation List */}
+        <nav id="sidebar-nav" className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">系统模块</span>
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentTab === item.id;
+            
+            return (
+              <button
+                id={`nav-item-${item.id}`}
+                key={item.id}
+                onClick={() => {
+                  setCurrentTab(item.id);
+                  if (onCloseMobile) onCloseMobile();
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40 translate-x-1'
+                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
+                }`}
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                  <span>{item.name}</span>
+                </div>
+                {item.badge && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    item.id === 'map' && isWarning 
+                      ? 'bg-rose-500 text-white animate-bounce' 
+                      : 'bg-slate-700 text-slate-300'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+          
+          <div className="h-4"></div>
+          <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">外部独立端</span>
+          
+          {externalMenuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentTab === item.id;
+            
+            return (
+              <button
+                id={`nav-item-${item.id}`}
+                key={item.id}
+                onClick={() => {
+                  setCurrentTab(item.id);
+                  if (onCloseMobile) onCloseMobile();
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40 translate-x-1'
+                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
+                }`}
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                  <span>{item.name}</span>
+                </div>
+                {item.badge && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    isActive ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-300'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+        </nav>
+
+        {/* Footer System Status */}
+        <div id="sidebar-footer" className="p-4 border-t border-slate-800 bg-slate-950 text-xs text-slate-500 flex flex-col space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span>系统状态</span>
+            <span className="flex items-center text-emerald-400 gap-1 font-semibold text-[10px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>运行中</span>
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-400 font-mono">
+            <span>日期: 2026/08/25</span>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

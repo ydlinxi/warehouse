@@ -78,6 +78,11 @@ export interface Position {
   model?: string | null;
   qty?: number | null;
   quality?: 'OQC验Pass' | '不合格' | '待复检' | null;
+  inbound_id?: string | null;
+  inbound_date?: string | null;
+  seq?: number | null;
+  line?: string | null;
+  handler?: string | null;
 }
 
 export interface WarehouseZoneConfig {

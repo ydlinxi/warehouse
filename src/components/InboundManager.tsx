@@ -140,6 +140,55 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
     }));
   };
 
+  const [batchFields, setBatchFields] = useState({
+    actualQty: '',
+    inboundDate: formatters.dbDate(),
+    selectedLine: lines[0] || '线别A-01',
+    selectedHandler: handlers[0] || '张敏',
+    qualityResult: 'OQC验Pass' as Inbound['quality'],
+    note: ''
+  });
+
+  const applyBatchFields = () => {
+    setSuccessMsg('');
+    setErrorMsg('');
+    const targetRows = pendingDemands.filter(d => rowInputs[d.id]?.checked);
+    if (targetRows.length === 0) {
+      setErrorMsg('请先勾选需要批量设置的托盘！');
+      return;
+    }
+
+    setRowInputs(prev => {
+      const next = { ...prev };
+      targetRows.forEach(d => {
+        if (next[d.id]) {
+          next[d.id] = {
+            ...next[d.id],
+            actualQty: batchFields.actualQty !== '' ? Number(batchFields.actualQty) : next[d.id].actualQty,
+            inboundDate: batchFields.inboundDate || next[d.id].inboundDate,
+            selectedLine: batchFields.selectedLine || next[d.id].selectedLine,
+            selectedHandler: batchFields.selectedHandler || next[d.id].selectedHandler,
+            qualityResult: batchFields.qualityResult || next[d.id].qualityResult,
+            note: batchFields.note !== '' ? batchFields.note : next[d.id].note,
+          };
+        }
+      });
+      return next;
+    });
+    setSuccessMsg(`✅ 成功将批量设置应用到 ${targetRows.length} 个勾选项！`);
+    setBatchFields(prev => ({ ...prev, actualQty: '', note: '' }));
+  };
+
+  const currentlySelectedCodes = useMemo(() => {
+    const codes = new Set<string>();
+    Object.values(rowInputs).forEach((input: any) => {
+      if (input.positionCode) {
+        codes.add(input.positionCode);
+      }
+    });
+    return codes;
+  }, [rowInputs]);
+
   // Toggle selection for all visible rows
   const isAllChecked = useMemo(() => {
     if (pendingDemands.length === 0) return false;
@@ -497,6 +546,52 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                 <th className="py-2.5 px-3 min-w-[120px]">流水备注</th>
                 <th className="py-2.5 px-3 text-center w-20">操作</th>
               </tr>
+              {pendingDemands.length > 0 && (
+                <tr className="bg-indigo-50/60 border-b border-indigo-100">
+                  <th className="py-1.5 px-3"></th>
+                  <th colSpan={4} className="py-1.5 px-3 text-right text-indigo-700 font-bold text-[11px]">
+                    批量设置选中项 👉
+                  </th>
+                  <th className="py-1.5 px-3 text-[10px] text-slate-400 font-medium">
+                    (仓位需独立分配)
+                  </th>
+                  <th className="py-1.5 px-1 text-center">
+                    <input type="number" placeholder="数量" value={batchFields.actualQty} onChange={(e) => setBatchFields({...batchFields, actualQty: e.target.value})} className="w-20 border border-indigo-200 rounded px-1.5 py-1 text-[10px] font-normal focus:outline-none focus:border-indigo-400" />
+                  </th>
+                  <th className="py-1.5 px-1 text-center">
+                    <input type="date" value={batchFields.inboundDate} onChange={(e) => setBatchFields({...batchFields, inboundDate: e.target.value})} className="w-24 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal focus:outline-none focus:border-indigo-400" />
+                  </th>
+                  <th className="py-1.5 px-1 text-center">
+                    <select value={batchFields.selectedLine} onChange={(e) => setBatchFields({...batchFields, selectedLine: e.target.value})} className="w-24 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal bg-white focus:outline-none focus:border-indigo-400">
+                      <option value="">不更改</option>
+                      {lines.map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </th>
+                  <th className="py-1.5 px-1 text-center">
+                    <select value={batchFields.selectedHandler} onChange={(e) => setBatchFields({...batchFields, selectedHandler: e.target.value})} className="w-20 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal bg-white focus:outline-none focus:border-indigo-400">
+                      <option value="">不更改</option>
+                      {handlers.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </th>
+                  <th className="py-1.5 px-1 text-center">
+                    <select value={batchFields.qualityResult} onChange={(e) => setBatchFields({...batchFields, qualityResult: e.target.value as any})} className="w-24 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal bg-white focus:outline-none focus:border-indigo-400">
+                      <option value="">不更改</option>
+                      <option value="OQC验Pass">OQC验Pass</option>
+                      <option value="特采">特采</option>
+                      <option value="返工复验">返工复验</option>
+                    </select>
+                  </th>
+                  <th className="py-1.5 px-1">
+                    <input type="text" placeholder="批量备注..." value={batchFields.note} onChange={(e) => setBatchFields({...batchFields, note: e.target.value})} className="w-full border border-indigo-200 rounded px-2 py-1 text-[10px] font-normal focus:outline-none focus:border-indigo-400" />
+                  </th>
+                  <th className="py-1.5 px-2 text-center">
+                    <button onClick={applyBatchFields} className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[11px] font-bold shadow-sm transition-colors cursor-pointer w-full flex items-center justify-center gap-1">
+                      <CheckSquare size={12} />
+                      应用
+                    </button>
+                  </th>
+                </tr>
+              )}
             </thead>
 
             <tbody className="divide-y divide-slate-100">
@@ -600,16 +695,20 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                               <optgroup key={`z-${zone}`} label={`${zone}区`}>
                                 {allPositions
                                   .filter(p => p.zone === zone)
-                                  .map(p => (
-                                    <option
-                                      key={`p-${p.code}`}
-                                      value={p.code}
-                                      disabled={p.isOccupied && p.code !== input.positionCode}
-                                      className={p.isOccupied ? 'text-slate-400 bg-slate-100' : 'text-slate-900 font-bold'}
-                                    >
-                                      {p.code} {p.isOccupied ? '(已用)' : '(空闲)'}
-                                    </option>
-                                  ))}
+                                  .map(p => {
+                                    const isSelectedByOther = currentlySelectedCodes.has(p.code) && input.positionCode !== p.code;
+                                    const isDisabled = (p.isOccupied && p.code !== input.positionCode) || isSelectedByOther;
+                                    return (
+                                      <option
+                                        key={`p-${p.code}`}
+                                        value={p.code}
+                                        disabled={isDisabled}
+                                        className={isDisabled ? 'text-slate-400 bg-slate-100' : 'text-slate-900 font-bold'}
+                                      >
+                                        {p.code} {p.isOccupied ? '(已用)' : (isSelectedByOther ? '(已选)' : '(空闲)')}
+                                      </option>
+                                    );
+                                  })}
                               </optgroup>
                             ))}
                           </select>

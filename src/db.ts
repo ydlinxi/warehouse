@@ -661,6 +661,17 @@ export class DBService {
     return newOutbound;
   }
 
+  static deleteOutbound(outboundId: string) {
+    const outboundsList = this.getOutbounds();
+    const outbound = outboundsList.find(o => o.id === outboundId);
+    if (!outbound) return;
+
+    const filtered = outboundsList.filter(o => o.id !== outboundId);
+    this.saveOutbounds(filtered);
+
+    this.updateOrderStatus(outbound.order_id);
+  }
+
   // Get current stock for an inbound ID
   static getPositionStock(inboundId: string): number {
     const inbounds = this.getInbounds();
@@ -782,7 +793,12 @@ export class DBService {
               order_no: activeData.inbound.order_no,
               model: activeData.inbound.model,
               qty: activeData.stock,
-              quality: activeData.inbound.quality
+              quality: activeData.inbound.quality,
+              inbound_id: activeData.inbound.id,
+              inbound_date: activeData.inbound.inbound_date,
+              seq: activeData.inbound.seq,
+              line: activeData.inbound.line,
+              handler: activeData.inbound.handler
             });
           } else {
             positions.push({
@@ -795,7 +811,12 @@ export class DBService {
               order_no: null,
               model: null,
               qty: null,
-              quality: null
+              quality: null,
+              inbound_id: null,
+              inbound_date: null,
+              seq: null,
+              line: null,
+              handler: null
             });
           }
         }
@@ -953,5 +974,9 @@ export class DBService {
     localStorage.removeItem(KEYS.LINES);
     localStorage.removeItem(KEYS.HANDLERS);
     this.initDatabaseIfEmpty();
+  }
+
+  static resetDatabase() {
+    this.resetToDefault();
   }
 }

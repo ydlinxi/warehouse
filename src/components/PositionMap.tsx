@@ -20,8 +20,10 @@ import {
 } from 'lucide-react';
 import { DBService, formatters } from '../db';
 import { Position, Order } from '../types';
+import { PositionLedgerTable } from './PositionLedgerTable';
 
 export const PositionMap: React.FC = () => {
+  const [viewMode, setViewMode] = useState<'grid' | 'ledger'>('grid');
   const [warehouseConfig, setWarehouseConfig] = useState(() => DBService.getWarehouseConfig());
   const [selectedZone, setSelectedZone] = useState('A');
   const [searchQuery, setSearchQuery] = useState('');
@@ -295,10 +297,52 @@ export const PositionMap: React.FC = () => {
   return (
     <div id="positionmap-root" className="space-y-3 font-sans text-xs select-none">
       
-      {/* =========================================================================
-          EXCEL TOP HEADER CONTROL BANNER (参考 Excel 头部 核心配置与统计栏)
-          ========================================================================= */}
-      <div className="bg-white border-2 border-slate-300 rounded-lg p-2 shadow-sm">
+      {/* Primary View Mode Toggle Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900 text-white p-3 rounded-2xl shadow-md border border-slate-800 gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-indigo-600 rounded-xl">
+            <Layers size={18} />
+          </div>
+          <div>
+            <h2 className="font-bold text-sm leading-none text-white">成品仓位调度与明细中心</h2>
+            <p className="text-[10px] text-slate-400 mt-1">全仓 {positions.length} 卡位分布与实时在库明细管理</p>
+          </div>
+        </div>
+
+        <div className="flex items-center bg-slate-800 p-1 rounded-xl gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setViewMode('grid')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+              viewMode === 'grid'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>🗺️ 可视化仓位网格</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('ledger')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+              viewMode === 'ledger'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>📋 全仓物理明细表</span>
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'ledger' ? (
+        <PositionLedgerTable />
+      ) : (
+        <>
+          {/* =========================================================================
+              EXCEL TOP HEADER CONTROL BANNER (参考 Excel 头部 核心配置与统计栏)
+              ========================================================================= */}
+          <div className="bg-white border-2 border-slate-300 rounded-lg p-2 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-2 text-center items-center">
           
           {/* Section 1: 订单号 & 订单库存数量 (Left Block) */}
@@ -814,6 +858,8 @@ export const PositionMap: React.FC = () => {
         </div>
 
       </div>
+        </>
+      )}
 
     </div>
   );
