@@ -51,7 +51,7 @@ export const SystemManual: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <div className="flex items-center gap-2 text-indigo-600 mb-4">
             <PackagePlus size={20} />
-            <h2 className="text-base font-bold text-slate-800">2. 入库分配与批量设置</h2>
+            <h2 className="text-base font-bold text-slate-800">2. 入库分配与历史回退</h2>
           </div>
           <p className="text-xs text-slate-600 leading-relaxed">
             在 <span className="font-bold text-slate-800">【入库扫码与批量分配】</span> 模块中处理未分配仓位的托盘：
@@ -59,7 +59,7 @@ export const SystemManual: React.FC = () => {
           <ul className="text-xs text-slate-600 list-disc list-inside space-y-1.5 ml-1">
             <li>在表格中为每一个排队的托盘指定一个 <span className="font-bold">空闲的物理仓位</span>。</li>
             <li><span className="text-indigo-600 font-bold">批量操作：</span>勾选左侧复选框，利用表格顶部的“批量设置选中项”功能，一键同步入库日期、品线、经办人、品检结果等。</li>
-            <li>确认无误后点击“一键入库锁定”，这些托盘将正式进入物理仓位。</li>
+            <li>在入库历史记录中，若需纠错可点击 <span className="text-amber-600 font-bold">【回退】按钮</span>：自动释放已被占用的仓位，并使托盘重新返回待分配列表。</li>
           </ul>
         </div>
 
@@ -83,16 +83,15 @@ export const SystemManual: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <div className="flex items-center gap-2 text-indigo-600 mb-4">
             <Smartphone size={20} />
-            <h2 className="text-base font-bold text-slate-800">4. 扫码填报端 (移动端)</h2>
+            <h2 className="text-base font-bold text-slate-800">4. 出库发货与历史回退</h2>
           </div>
           <p className="text-xs text-slate-600 leading-relaxed">
-            左侧菜单底部的 <span className="font-bold text-slate-800">【扫码填报端】</span> 专为车间现场人员设计：
+            在 <span className="font-bold text-slate-800">【成品出库发货管理】</span> 模块中：
           </p>
           <ul className="text-xs text-slate-600 list-disc list-inside space-y-1.5 ml-1">
-            <li>采用移动端自适应（Mobile-First）大卡片设计，按钮放大，适合手指触控。</li>
-            <li><span className="font-bold">入库登记：</span>选择空闲仓位和待分配订单，填写相关信息直接提交。</li>
-            <li><span className="font-bold">出库登记：</span>选择已用仓位，系统自动调出库龄与在库数量，录入扣减数量即可出库释放。</li>
-            <li>此界面未来可直接转成二维码供工业 PDA 或微信扫一扫使用。</li>
+            <li>支持仓位出库台账与出库历史记录双 Tab 切换。</li>
+            <li>在出库历史记录与追溯中，点击 <span className="text-amber-600 font-bold">【回退】按钮</span> 可一键回退发货记录及相关数据，并将出库数量自动恢复至对应卡位库存中。</li>
+            <li>移动端扫码填报端同样支持便捷出库登记。</li>
           </ul>
         </div>
 
