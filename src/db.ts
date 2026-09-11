@@ -361,6 +361,12 @@ export class DBService {
     }
 
     const palletCount = Math.ceil(orderQty / perPallet);
+    
+    // Safety check to prevent memory issues
+    if (palletCount > 2000) {
+      throw new Error(`订单划分的卡位数量(${palletCount}托)超过系统上限，请分批建单。`);
+    }
+
     const customerCode = orderNo.length >= 4 ? orderNo.substring(0, 4) : orderNo;
 
     const newOrder: Order = {
@@ -394,6 +400,71 @@ export class DBService {
     this.saveDemands(demands);
 
     return newOrder;
+  }
+
+  static deleteOrder(orderId: string): void {
+    const orders = this.getOrders();
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) throw new Error('找不到该订单。');
+    const order = orders[orderIndex];
+
+    if (order.status !== 'pending') {
+      throw new Error('仅允许删除处于“排单中”状态的订单。');
+    }
+
+    // Delete order
+    orders.splice(orderIndex, 1);
+    this.saveOrders(orders);
+
+    // Delete associated demands
+    const demands = this.getDemands().filter(d => d.order_id !== orderId);
+    this.saveDemands(demands);
+  }
+
+  static updateOrder(orderId: string, orderNo: string, model: string, orderQty: number, perPallet: number): void {
+    const orders = this.getOrders();
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) throw new Error('找不到该订单。');
+    const order = orders[orderIndex];
+
+    if (order.status !== 'pending') {
+      throw new Error('仅允许修改处于“排单中”状态的订单。');
+    }
+
+    if (orders.some(o => o.id !== orderId && o.order_no.toUpperCase() === orderNo.toUpperCase())) {
+      throw new Error(`订单号 ${orderNo} 已经存在！`);
+    }
+
+    const palletCount = Math.ceil(orderQty / perPallet);
+    if (palletCount > 2000) {
+      throw new Error(`订单划分的卡位数量(${palletCount}托)超过系统上限，请分批建单。`);
+    }
+
+    const customerCode = orderNo.length >= 4 ? orderNo.substring(0, 4) : orderNo;
+
+    order.order_no = orderNo.toUpperCase();
+    order.customer_code = customerCode.toUpperCase();
+    order.model = model;
+    order.order_qty = orderQty;
+    order.per_pallet = perPallet;
+    order.pallet_count = palletCount;
+
+    this.saveOrders(orders);
+
+    // Recreate demands since count or orderNo/model changed
+    let demands = this.getDemands().filter(d => d.order_id !== orderId);
+    for (let i = 1; i <= palletCount; i++) {
+      demands.push({
+        id: generateUUID(),
+        order_id: order.id,
+        order_no: order.order_no,
+        model: order.model,
+        seq: i,
+        position_code: null,
+        inbound_id: null
+      });
+    }
+    this.saveDemands(demands);
   }
 
   // Demands CRUD

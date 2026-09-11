@@ -44,6 +44,7 @@ interface InventoryStoreState {
   isSearchModalOpen: boolean;
   isScanModalOpen: boolean;
   globalSearchQuery: string;
+  targetOutboundPosition: Position | null;
 
   // Index maps for O(1) lookups
   positionMap: Map<string, Position>;
@@ -55,6 +56,7 @@ interface InventoryStoreState {
   setSearchModalOpen: (open: boolean) => void;
   setScanModalOpen: (open: boolean) => void;
   setGlobalSearchQuery: (q: string) => void;
+  setTargetOutboundPosition: (pos: Position | null) => void;
 
   // DB Business Actions
   addOrder: (order: {
@@ -132,6 +134,7 @@ export const useInventoryStore = create<InventoryStoreState>((set, get) => ({
   isSearchModalOpen: false,
   isScanModalOpen: false,
   globalSearchQuery: '',
+  targetOutboundPosition: null,
 
   positionMap: new Map(),
   orderMap: new Map(),
@@ -183,6 +186,7 @@ export const useInventoryStore = create<InventoryStoreState>((set, get) => ({
   setSearchModalOpen: (open) => set({ isSearchModalOpen: open }),
   setScanModalOpen: (open) => set({ isScanModalOpen: open }),
   setGlobalSearchQuery: (q) => set({ globalSearchQuery: q }),
+  setTargetOutboundPosition: (pos) => set({ targetOutboundPosition: pos }),
 
   addOrder: (orderData) => {
     const newOrder = DBService.addOrder(

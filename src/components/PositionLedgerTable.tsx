@@ -22,7 +22,11 @@ import {
 } from 'lucide-react';
 import { formatters } from '../db';
 
-export const PositionLedgerTable: React.FC = () => {
+interface PositionLedgerTableProps {
+  mode?: 'all' | 'outbound';
+}
+
+export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode = 'all' }) => {
   const {
     positions,
     demands,
@@ -31,11 +35,13 @@ export const PositionLedgerTable: React.FC = () => {
     recordInbound,
     recordOutbound,
     updateInbound,
-    refreshData
+    refreshData,
+    targetOutboundPosition,
+    setTargetOutboundPosition
   } = useInventoryStore();
 
   // Filters & Pagination State
-  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>(mode === 'outbound' ? 'occupied' : 'all');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -52,6 +58,16 @@ export const PositionLedgerTable: React.FC = () => {
   const [inboundQuality, setInboundQuality] = useState<'OQC验Pass' | '待复检' | '不合格'>('OQC验Pass');
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string>('');
   const [actionErrorMsg, setActionErrorMsg] = useState<string>('');
+
+  React.useEffect(() => {
+    if (mode === 'outbound' && targetOutboundPosition) {
+      // Auto open outbound modal for the target position
+      setQuickOutboundPos(targetOutboundPosition);
+      setOutboundQtyInput(targetOutboundPosition.qty || 1);
+      // Clear it from global store so it doesn't re-trigger on next mount
+      setTargetOutboundPosition(null);
+    }
+  }, [mode, targetOutboundPosition, setTargetOutboundPosition]);
 
   const todayStr = formatters.dbDate();
 
@@ -489,29 +505,36 @@ export const PositionLedgerTable: React.FC = () => {
                       {/* Actions */}
                       <td className="py-2.5 px-3 text-center">
                         {p.status === 'available' ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setQuickInboundPos(p);
-                              if (unallocatedDemands.length > 0) {
-                                setSelectedDemandId(unallocatedDemands[0].id);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                          >
-                            <PlusCircle size={12} />
-                            <span>上架</span>
-                          </button>
+                          mode !== 'outbound' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuickInboundPos(p);
+                                if (unallocatedDemands.length > 0) {
+                                  setSelectedDemandId(unallocatedDemands[0].id);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                            >
+                              <PlusCircle size={12} />
+                              <span>上架</span>
+                            </button>
+                          )
                         ) : (
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => {
-                                setQuickOutboundPos(p);
-                                setOutboundQtyInput(p.qty || 100);
+                                if (mode === 'all') {
+                                  setTargetOutboundPosition(p);
+                                  window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'outbound' }));
+                                } else {
+                                  setQuickOutboundPos(p);
+                                  setOutboundQtyInput(p.qty || 100);
+                                }
                               }}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                              title="直接从此仓位快捷扣减出库"
+                              title="快捷出库"
                             >
                               <PackageMinus size={12} />
                               <span>出库</span>

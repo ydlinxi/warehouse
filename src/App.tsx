@@ -40,6 +40,17 @@ export default function App() {
     refreshData();
   }, [currentTab]);
 
+  // Global navigation listener
+  useEffect(() => {
+    const handleNavigation = (e: CustomEvent) => {
+      if (e.detail && typeof e.detail === 'string') {
+        setCurrentTab(e.detail);
+      }
+    };
+    window.addEventListener('navigate-tab' as any, handleNavigation);
+    return () => window.removeEventListener('navigate-tab' as any, handleNavigation);
+  }, []);
+
   const handleNavigate = (tab: string) => {
     setCurrentTab(tab);
   };
