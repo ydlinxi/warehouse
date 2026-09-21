@@ -32,8 +32,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const shortageOrders = orders.filter(o => o.status === 'shortage' || o.status === 'pending');
   const qualityPendingCount = inbounds.filter(i => i.quality === '待复检' && DBService.getPositionStock(i.id) > 0).length;
 
-  // Let's build trend data for the last 7 days (or simulated 10 days for August 2026)
-  const days = ['2026-08-16', '2026-08-17', '2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21', '2026-08-22', '2026-08-23', '2026-08-24', '2026-08-25'];
+  // 近 10 天趋势（动态窗口）
+  const days = Array.from({ length: 10 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (9 - i));
+    return d.toISOString().slice(0, 10);
+  });
   
   const chartData = days.map(d => {
     const inQty = inbounds
@@ -105,7 +109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
         <div className="flex items-center space-x-2 text-xs text-slate-500 bg-white border border-slate-200 rounded-xl py-1.5 px-3 shadow-sm">
           <Calendar size={14} className="text-slate-400" />
-          <span className="font-semibold">快照日期：2026/08/25</span>
+          <span className="font-semibold">快照日期：{new Date().toLocaleDateString('zh-CN')}</span>
         </div>
       </div>
 
@@ -119,6 +123,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               {formatters.number(stats.stockBalance)}
             </span>
             <span className="text-xs text-slate-400 font-semibold mb-1">Pcs</span>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] font-bold">
+            <span className="text-emerald-600">可售 {formatters.number(stats.sellableBalance)}</span>
+            <span className="text-rose-600">冻结 {formatters.number(stats.frozenBalance)}</span>
           </div>
         </div>
 

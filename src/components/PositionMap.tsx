@@ -40,7 +40,7 @@ export const PositionMap: React.FC = () => {
   // Selected Order for Excel Top Bar & Left Table
   const [selectedOrderNo, setSelectedOrderNo] = useState<string>(() => {
     if (orders.length > 0) return orders[0].order_no;
-    return 'PO260810';
+    return 'PO260901';
   });
 
   // Searchable Order Combobox State
@@ -483,7 +483,7 @@ export const PositionMap: React.FC = () => {
               </div>
               <div className="bg-rose-100/90 p-1 rounded border border-rose-300">
                 <span className="text-rose-700 block text-[10px] font-bold">爆仓预警</span>
-                <span className="font-black text-rose-800 font-mono text-xs">{overallStats.isWarning ? '告警中' : '85%'}</span>
+                <span className="font-black text-rose-800 font-mono text-xs">{overallStats.isWarning ? '告警中' : `${Math.round(overallStats.occupancyRate)}%`}</span>
               </div>
             </div>
           </div>
@@ -560,7 +560,7 @@ export const PositionMap: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索仓位/订单/型号/数量 (例 B02-01, PO260810, MX-400)..."
+              placeholder="搜索仓位/订单/型号/数量 (例 B03-01, PO260901, MX-400 模块 黑色)..."
               className="pl-7 pr-2 py-1 text-xs bg-white border border-slate-300 rounded font-mono uppercase focus:outline-none focus:ring-1 focus:ring-emerald-500 w-64"
             />
             {searchQuery && (
@@ -577,11 +577,15 @@ export const PositionMap: React.FC = () => {
           <div className="flex items-center space-x-2 text-[11px] bg-white px-2 py-1 rounded border border-slate-300 font-bold">
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 bg-rose-600 rounded-sm inline-block" />
-              已占/占用
+              合格占用
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 bg-emerald-600 rounded-sm inline-block" />
               空置/可用
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 bg-amber-300 border border-amber-600 rounded-sm inline-block" />
+              冻结(待复检/不合格)
             </span>
           </div>
 
@@ -831,6 +835,11 @@ export const PositionMap: React.FC = () => {
                             cellBgClass = 'bg-amber-400 text-slate-900 font-black animate-pulse';
                           } else if (highlightOrderSlots && isMatchSelectedOrder) {
                             cellBgClass = 'bg-rose-600 text-white ring-2 ring-amber-400 font-black z-10 shadow-sm';
+                          } else if (isOccupied && pos?.quality && pos.quality !== 'OQC验Pass') {
+                            // Frozen stock: quality not passed -> distinct styling, cannot be shipped
+                            cellBgClass = pos.quality === '不合格'
+                              ? 'bg-rose-300 text-rose-900 hover:bg-rose-400 border-2 border-rose-600'
+                              : 'bg-amber-300 text-amber-900 hover:bg-amber-400 border-2 border-amber-600';
                           }
 
                           return (

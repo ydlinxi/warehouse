@@ -15,9 +15,11 @@ import {
   ArrowRight,
   PlusCircle,
   QrCode,
-  Sparkles
+  Sparkles,
+  ShoppingCart,
+  Bell
 } from 'lucide-react';
-import { formatters } from '../db';
+import { formatters, DBService } from '../db';
 
 interface GlobalSearchModalProps {
   onNavigateTab?: (tab: string) => void;
@@ -65,7 +67,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
   const searchResults = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
-      return { matchedPositions: [], matchedOrders: [], matchedInbounds: [] };
+      return { matchedPositions: [], matchedOrders: [], matchedInbounds: [], matchedSkus: [], matchedPurchases: [], matchedPendingOutbounds: [] };
     }
 
     const matchedPositions = positions.filter(p =>
@@ -86,7 +88,27 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
       i.model.toLowerCase().includes(trimmed)
     ).slice(0, 6);
 
-    return { matchedPositions, matchedOrders, matchedInbounds };
+    const _items = DBService.getRawItems();
+    const _itemNameOf = (itemId?: string) => (_items.find(i => i.itemId === itemId)?.itemName || '').toLowerCase();
+    const matchedSkus = DBService.getProductSkus().filter(s =>
+      s.sku.toLowerCase().includes(trimmed) ||
+      (s.itemId || '').toLowerCase().includes(trimmed) ||
+      _itemNameOf(s.itemId).includes(trimmed) ||
+      s.title.toLowerCase().includes(trimmed)
+    ).slice(0, 6);
+
+    const matchedPurchases = DBService.getPurchaseOrders().filter(p =>
+      p.poNo.toLowerCase().includes(trimmed) ||
+      p.supplierName.toLowerCase().includes(trimmed)
+    ).slice(0, 6);
+
+    const matchedPendingOutbounds = DBService.getPendingOutbounds().filter(p =>
+      p.ecomOrderNo.toLowerCase().includes(trimmed) ||
+      p.model.toLowerCase().includes(trimmed) ||
+      p.recipient.toLowerCase().includes(trimmed)
+    ).slice(0, 6);
+
+    return { matchedPositions, matchedOrders, matchedInbounds, matchedSkus, matchedPurchases, matchedPendingOutbounds };
   }, [query, positions, orders, inbounds]);
 
   if (!isSearchModalOpen) return null;
@@ -98,7 +120,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
         p.inbound_id,
         todayStr,
         outboundQty,
-        '刘杰',
+        DBService.getHandlers()[0] || '系统',
         '全局万能检索极速出库'
       );
       setFeedbackMsg(`⚡ 仓位 [${p.code}] 已成功扣减出库 ${outboundQty} Pcs！`);
@@ -112,7 +134,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
   const totalResultsCount =
     searchResults.matchedPositions.length +
     searchResults.matchedOrders.length +
-    searchResults.matchedInbounds.length;
+    searchResults.matchedInbounds.length +
+    searchResults.matchedSkus.length +
+    searchResults.matchedPurchases.length +
+    searchResults.matchedPendingOutbounds.length;
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-start justify-center pt-16 sm:pt-24 px-4">
@@ -270,6 +295,97 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
                             型号：{inb.model} | 数量：{inb.actual_qty} Pcs | 入库日期：{inb.inbound_date}
                           </p>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SKU Section */}
+              {searchResults.matchedSkus.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-slate-500 text-[11px] uppercase tracking-wider mb-2">
+                    <Bell size={14} className="text-indigo-600" />
+                    <span>匹配商品 SKU ({searchResults.matchedSkus.length})</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {searchResults.matchedSkus.map(s => (
+                      <div
+                        key={s.sku}
+                        onClick={() => { setSearchModalOpen(false); if (onNavigateTab) onNavigateTab('replenish'); }}
+                        className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between hover:bg-indigo-50/50 hover:border-indigo-200 cursor-pointer transition-colors"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-indigo-700">{s.sku}</span>
+                            <span className="text-slate-700 font-semibold">{s.title}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            在库 {s.stock} · 补货值 {s.replenishPoint} · 充裕值 {s.abundanceThreshold} · {s.supplierName || s.supplierId}
+                          </p>
+                        </div>
+                        <ArrowRight size={14} className="text-slate-400" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Purchase Orders Section */}
+              {searchResults.matchedPurchases.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-slate-500 text-[11px] uppercase tracking-wider mb-2">
+                    <ShoppingCart size={14} className="text-indigo-600" />
+                    <span>匹配采购单 ({searchResults.matchedPurchases.length})</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {searchResults.matchedPurchases.map(p => (
+                      <div
+                        key={p.poNo}
+                        onClick={() => { setSearchModalOpen(false); if (onNavigateTab) onNavigateTab('purchase'); }}
+                        className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between hover:bg-indigo-50/50 hover:border-indigo-200 cursor-pointer transition-colors"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-indigo-700">{p.poNo}</span>
+                            <span className="text-slate-700 font-semibold">{p.supplierName}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            状态 {p.status} · {p.items.length} 个SKU · 共 {p.totalQty} 件
+                          </p>
+                        </div>
+                        <ArrowRight size={14} className="text-slate-400" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pending Outbounds Section */}
+              {searchResults.matchedPendingOutbounds.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-slate-500 text-[11px] uppercase tracking-wider mb-2">
+                    <PackageMinus size={14} className="text-indigo-600" />
+                    <span>匹配待出库发货单 ({searchResults.matchedPendingOutbounds.length})</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {searchResults.matchedPendingOutbounds.map(p => (
+                      <div
+                        key={p.id}
+                        onClick={() => { setSearchModalOpen(false); if (onNavigateTab) onNavigateTab('outbound'); }}
+                        className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between hover:bg-indigo-50/50 hover:border-indigo-200 cursor-pointer transition-colors"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-indigo-700">{p.ecomOrderNo}</span>
+                            <span className="text-slate-700 font-semibold">{p.model}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">{p.status}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500">
+                            {p.platform} · {p.qty} 件 · 收件人 {p.recipient}
+                          </p>
+                        </div>
+                        <ArrowRight size={14} className="text-slate-400" />
                       </div>
                     ))}
                   </div>

@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useInventoryStore } from '../store/useInventoryStore';
-import { formatters } from '../db';
-import { PackagePlus, PackageMinus, CheckCircle2, AlertCircle, Search } from 'lucide-react';
+import { formatters, DBService, QUALITY_OPTIONS } from '../db';
+import { PackagePlus, PackageMinus, CheckCircle2, AlertCircle, Search, QrCode, Camera, X } from 'lucide-react';
 
 export const MobileRecordForm: React.FC = () => {
   const { stats, positions, demands, recordInbound, recordOutbound } = useInventoryStore();
@@ -11,8 +11,10 @@ export const MobileRecordForm: React.FC = () => {
   const [positionCode, setPositionCode] = useState('');
   const [demandId, setDemandId] = useState('');
   const [qty, setQty] = useState('');
-  const [handler, setHandler] = useState('张敏');
-  const [line, setLine] = useState('线别A-01');
+  const lines = useMemo(() => DBService.getLines(), []);
+  const handlers = useMemo(() => DBService.getHandlers(), []);
+  const [handler, setHandler] = useState(() => DBService.getHandlers()[0] || '');
+  const [line, setLine] = useState(() => DBService.getLines()[0] || '');
   const [quality, setQuality] = useState<'OQC验Pass' | '待复检' | '不合格'>('OQC验Pass');
   const [note, setNote] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +45,62 @@ export const MobileRecordForm: React.FC = () => {
       p.code.toLowerCase().includes(q)
     );
   }, [occupiedPositions, searchQuery]);
+
+  // ===== 真实扫码：优先使用浏览器原生 BarcodeDetector + 摄像头，不支持时提示扫码枪 =====
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const stopScan = () => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setScanOpen(false);
+  };
+
+  const startScan = async () => {
+    setScanError('');
+    const BD = (window as any).BarcodeDetector;
+    if (!BD || !navigator.mediaDevices?.getUserMedia) {
+      setScanOpen(true);
+      setScanError('当前浏览器不支持摄像头扫码，请使用扫码枪扫描或手动选择仓位。');
+      return;
+    }
+    setScanOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      const detector = new BD({ formats: ['qr_code', 'code_128', 'ean_13'] });
+      const tick = async () => {
+        if (!videoRef.current || !streamRef.current) return;
+        try {
+          const codes = await detector.detect(videoRef.current);
+          if (codes && codes.length > 0) {
+            const value = String(codes[0].rawValue || '').trim();
+            setPositionCode(value);
+            setMessage({ type: 'success', text: `📷 已扫码识别仓位：${value}` });
+            stopScan();
+            return;
+          }
+        } catch (e) { /* 单帧识别失败忽略，继续下一帧 */ }
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    } catch (e: any) {
+      setScanError('无法访问摄像头：' + (e?.message || '权限被拒绝'));
+    }
+  };
+
+  useEffect(() => () => stopScan(), []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,17 +275,27 @@ export const MobileRecordForm: React.FC = () => {
               {/* Position Selector */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 block">目标仓位 *</label>
-                <select
-                  value={positionCode}
-                  onChange={(e) => setPositionCode(e.target.value)}
-                  className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
-                >
-                  <option value="">-- 请选择仓位 --</option>
-                  {activeMode === 'inbound' 
-                    ? availablePositions.map(p => <option key={p.code} value={p.code}>{p.code} (空闲)</option>)
-                    : occupiedPositions.map(p => <option key={p.code} value={p.code}>{p.code} (已用)</option>)
-                  }
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={positionCode}
+                    onChange={(e) => setPositionCode(e.target.value)}
+                    className="flex-1 border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
+                  >
+                    <option value="">-- 请选择仓位 --</option>
+                    {activeMode === 'inbound' 
+                      ? availablePositions.map(p => <option key={p.code} value={p.code}>{p.code} (空闲)</option>)
+                      : occupiedPositions.map(p => <option key={p.code} value={p.code}>{p.code} (已用)</option>)
+                    }
+                  </select>
+                  <button
+                    type="button"
+                    onClick={startScan}
+                    className="px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
+                    title="调用摄像头扫描仓位码"
+                  >
+                    <Camera size={14} />扫码
+                  </button>
+                </div>
                 <p className="text-[10px] text-slate-400">
                   {activeMode === 'inbound' ? '请选择一个空闲的仓位进行上架。' : '请选择需要扣减出库的实物仓位。'}
                 </p>
@@ -276,9 +344,7 @@ export const MobileRecordForm: React.FC = () => {
                     onChange={(e) => setLine(e.target.value)}
                     className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
                   >
-                    <option value="线别A-01">线别A-01</option>
-                    <option value="线别A-02">线别A-02</option>
-                    <option value="委外加工线">委外加工线</option>
+                    {lines.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5 flex-1">
@@ -288,9 +354,7 @@ export const MobileRecordForm: React.FC = () => {
                     onChange={(e) => setQuality(e.target.value as any)}
                     className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
                   >
-                    <option value="OQC验Pass">OQC验Pass</option>
-                    <option value="待复检">待复检</option>
-                    <option value="不合格">不合格</option>
+                    {QUALITY_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}
                   </select>
                 </div>
               </div>
@@ -353,9 +417,7 @@ export const MobileRecordForm: React.FC = () => {
                 onChange={(e) => setHandler(e.target.value)}
                 className="w-full border-2 border-slate-200 rounded-xl px-3 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
               >
-                <option value="张敏">张敏</option>
-                <option value="李强">李强</option>
-                <option value="王工">王工</option>
+                {handlers.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
             <div className="space-y-1.5 flex-1">
@@ -394,6 +456,33 @@ export const MobileRecordForm: React.FC = () => {
         </>
       )}
     </form>
+
+      {/* 扫码浮层 */}
+      {scanOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <QrCode size={16} className="text-indigo-600" />扫描仓位二维码 / 条码
+              </span>
+              <button type="button" onClick={stopScan} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-3 space-y-3">
+              {scanError ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">{scanError}</div>
+              ) : (
+                <div className="relative rounded-xl overflow-hidden bg-black aspect-square">
+                  <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+                  <div className="absolute inset-10 border-2 border-white/60 rounded-lg pointer-events-none" />
+                </div>
+              )}
+              <p className="text-[11px] text-slate-400 text-center">将仓位码对准取景框，识别后自动填入；也可直接用扫码枪录入。</p>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

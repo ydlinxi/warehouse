@@ -16,8 +16,9 @@ import { DBService, formatters } from '../db';
 import { InventoryMonthRecord, Inbound, Outbound } from '../types';
 
 export const InventorySummary: React.FC = () => {
-  const currentYear = 2026;
-  const currentMonth = 8;
+  const _now = new Date();
+  const currentYear = _now.getFullYear();
+  const currentMonth = _now.getMonth() + 1;
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -47,6 +48,8 @@ export const InventorySummary: React.FC = () => {
   const totalInbound = filteredRecords.reduce((sum, r) => sum + r.inbound, 0);
   const totalOutbound = filteredRecords.reduce((sum, r) => sum + r.outbound, 0);
   const totalClosing = filteredRecords.reduce((sum, r) => sum + r.closing, 0);
+  const totalClosingSellable = filteredRecords.reduce((sum, r) => sum + r.closingSellable, 0);
+  const totalClosingFrozen = filteredRecords.reduce((sum, r) => sum + r.closingFrozen, 0);
 
   // Product models for dropdown filter
   const models = DBService.getModels();
@@ -56,8 +59,8 @@ export const InventorySummary: React.FC = () => {
     const title = `${selectedYear}年${selectedMonth}月成品进销存总表`;
     
     // Headers list
-    const headers = ['序号', '客户编码', '订单号', '产品型号', '仓位码', '期初库存 (Pcs)', '本期入库 (Pcs)', '本期出库 (Pcs)', '期末结存 (Pcs)', '品质检验'];
-    
+    const headers = ['序号', '客户编码', '订单号', '产品型号', 'SKU 编码', '仓位码', '期初库存 (Pcs)', '本期入库 (Pcs)', '本期出库 (Pcs)', '期末结存 (Pcs)', '可售结存 (Pcs)', '冻结结存 (Pcs)', '品质检验'];
+
     const rows = filteredRecords.map((r, index) => {
       const customerCode = r.order_no.slice(0, 4);
       return [
@@ -65,11 +68,14 @@ export const InventorySummary: React.FC = () => {
         customerCode,
         r.order_no,
         r.model,
+        r.sku || '',
         r.position_code,
         r.opening,
         r.inbound,
         r.outbound,
         r.closing,
+        r.closingSellable,
+        r.closingFrozen,
         r.quality
       ];
     });
@@ -80,7 +86,7 @@ export const InventorySummary: React.FC = () => {
       headers,
       ...rows,
       [],
-      ['合计', '', '', '', '', totalOpening, totalInbound, totalOutbound, totalClosing, '']
+      ['合计', '', '', '', '', '', totalOpening, totalInbound, totalOutbound, totalClosing, '']
     ].map(e => e.map(val => {
       // Escape commas and double quotes for safety
       if (typeof val === 'string') {
@@ -147,8 +153,7 @@ export const InventorySummary: React.FC = () => {
               onChange={(e) => setSelectedYear(Number(e.target.value))}
               className="bg-transparent border-0 py-1 px-2.5 text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
-              <option value="2026">2026年</option>
-              <option value="2025">2025年</option>
+              {[currentYear, currentYear - 1].map(y => <option key={y} value={y}>{y}年</option>)}
             </select>
             <span className="text-slate-300">|</span>
             <select
@@ -228,11 +233,14 @@ export const InventorySummary: React.FC = () => {
                 <th className="py-3 px-4">客户编码</th>
                 <th className="py-3 px-4">订单号</th>
                 <th className="py-3 px-4">产品型号</th>
+                <th className="py-3 px-4">SKU 编码</th>
                 <th className="py-3 px-4">仓位码</th>
                 <th className="py-3 px-4 text-right">期初库存 (Pcs)</th>
                 <th className="py-3 px-4 text-right">本期入库 (Pcs)</th>
                 <th className="py-3 px-4 text-right">本期出库 (Pcs)</th>
                 <th className="py-3 px-4 text-right text-indigo-600">期末结存 (Pcs)</th>
+                <th className="py-3 px-4 text-right text-emerald-600">可售结存 (Pcs)</th>
+                <th className="py-3 px-4 text-right text-rose-600">冻结结存 (Pcs)</th>
                 <th className="py-3 px-4 text-center">品质检验</th>
                 <th className="py-3 px-4 text-center">多维钻取</th>
               </tr>
@@ -240,7 +248,7 @@ export const InventorySummary: React.FC = () => {
             <tbody className="divide-y divide-slate-50 text-xs text-slate-700">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                  <td colSpan={14} className="py-12 text-center text-slate-400">
                     该统计月份暂无活跃的进销存库存流水。
                   </td>
                 </tr>
@@ -255,11 +263,14 @@ export const InventorySummary: React.FC = () => {
                       <td className="py-2.5 px-4 font-semibold text-slate-500">{customerCode}</td>
                       <td className="py-2.5 px-4 font-mono font-bold text-slate-800">{r.order_no}</td>
                       <td className="py-2.5 px-4">{r.model}</td>
+                      <td className="py-2.5 px-4 font-mono text-[11px] text-slate-500">{r.sku || '—'}</td>
                       <td className="py-2.5 px-4 font-mono font-bold text-slate-700">{r.position_code}</td>
                       <td className="py-2.5 px-4 text-right font-mono text-slate-500">{formatters.number(r.opening)}</td>
                       <td className="py-2.5 px-4 text-right font-mono text-emerald-600">{formatters.number(r.inbound)}</td>
                       <td className="py-2.5 px-4 text-right font-mono text-amber-600">{formatters.number(r.outbound)}</td>
                       <td className="py-2.5 px-4 text-right font-mono font-bold text-indigo-700">{formatters.number(r.closing)}</td>
+                      <td className="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">{formatters.number(r.closingSellable)}</td>
+                      <td className="py-2.5 px-4 text-right font-mono font-bold text-rose-700">{formatters.number(r.closingFrozen)}</td>
                       <td className="py-2.5 px-4 text-center">
                         <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
                           isPass ? 'bg-emerald-50 text-emerald-600' : 
@@ -287,11 +298,13 @@ export const InventorySummary: React.FC = () => {
             {filteredRecords.length > 0 && (
               <tfoot className="sticky bottom-0 bg-slate-900 text-slate-200 text-xs font-bold border-t border-slate-700 z-10">
                 <tr>
-                  <td colSpan={5} className="py-3 px-4 text-center">期末合并求和合计</td>
+                  <td colSpan={6} className="py-3 px-4 text-center">期末合并求和合计</td>
                   <td className="py-3 px-4 text-right font-mono">{formatters.number(totalOpening)}</td>
                   <td className="py-3 px-4 text-right font-mono text-emerald-400">{formatters.number(totalInbound)}</td>
                   <td className="py-3 px-4 text-right font-mono text-amber-400">{formatters.number(totalOutbound)}</td>
                   <td className="py-3 px-4 text-right font-mono text-indigo-300">{formatters.number(totalClosing)}</td>
+                  <td className="py-3 px-4 text-right font-mono text-emerald-300">{formatters.number(totalClosingSellable)}</td>
+                  <td className="py-3 px-4 text-right font-mono text-rose-300">{formatters.number(totalClosingFrozen)}</td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>
@@ -332,6 +345,9 @@ export const InventorySummary: React.FC = () => {
                 <div>
                   <span className="text-slate-400 block mb-0.5">产品型号:</span>
                   <span className="font-semibold text-slate-700">{drilldownRecord.model}</span>
+                  {drilldownRecord.sku && (
+                    <span className="block text-[10px] font-mono text-slate-400 mt-0.5">{drilldownRecord.sku}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5">在库品质:</span>

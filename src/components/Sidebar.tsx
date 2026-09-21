@@ -5,8 +5,7 @@
 
 import React from 'react';
 import {
-  LayoutDashboard,
-  FileSpreadsheet,
+  ShoppingCart,
   PackagePlus,
   PackageMinus,
   Database,
@@ -14,7 +13,8 @@ import {
   Settings,
   Smartphone,
   BookOpen,
-  X
+  X,
+  LucideIcon
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,6 +23,14 @@ interface SidebarProps {
   isWarning: boolean;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  badges?: Record<string, number>;
+}
+
+interface NavItem {
+  id: string;
+  name: string;
+  icon: LucideIcon;
+  badge?: string | number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -30,23 +38,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setCurrentTab,
   isWarning,
   isOpenMobile = false,
-  onCloseMobile
+  onCloseMobile,
+  badges = {}
 }) => {
-  const menuItems = [
-    { id: 'map', name: '首页 / 仓位地图', icon: Map, badge: isWarning ? '爆仓预警' : undefined },
-    { id: 'dashboard', name: '运营大盘看板', icon: LayoutDashboard },
-    { id: 'orders', name: '订单管理', icon: FileSpreadsheet },
-    { id: 'inbound', name: '入库管理', icon: PackagePlus },
-    { id: 'outbound', name: '出库管理', icon: PackageMinus },
-    { id: 'inventory', name: '库存报表', icon: Database },
-    { id: 'system', name: '系统配置', icon: Settings },
+  const menuItems: NavItem[] = [
+    { id: 'm-procurement', name: '采购管理', icon: ShoppingCart },
+    { id: 'm-inbound', name: '入库管理', icon: PackagePlus },
+    { id: 'm-outbound', name: '出库管理', icon: PackageMinus },
+    { id: 'm-warehouse', name: '仓库管理', icon: Database },
   ];
 
-  const externalMenuItems = [
+  const externalMenuItems: NavItem[] = [
+    { id: 'map', name: '首页 / 仓位地图', icon: Map, badge: isWarning ? '爆仓预警' : undefined },
+    { id: 'system', name: '系统配置', icon: Settings },
     { id: 'mobileForm', name: '扫码填报端', icon: Smartphone, badge: '二维码' },
   ];
 
-  const helpMenuItems = [
+  const helpMenuItems: NavItem[] = [
     { id: 'manual', name: '系统操作说明', icon: BookOpen },
   ];
 
@@ -90,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Navigation List */}
         <nav id="sidebar-nav" className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">系统模块</span>
+          <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">业务模块</span>
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
@@ -113,13 +121,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
                   <span>{item.name}</span>
                 </div>
-                {item.badge && (
+                {(item.badge || (badges[item.id] || 0) > 0) && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                    item.id === 'map' && isWarning 
-                      ? 'bg-rose-500 text-white animate-bounce' 
-                      : 'bg-slate-700 text-slate-300'
+                    item.id === 'map' && isWarning
+                      ? 'bg-rose-500 text-white animate-bounce'
+                      : (badges[item.id] || 0) > 0
+                        ? 'bg-indigo-500 text-white'
+                        : 'bg-slate-700 text-slate-300'
                   }`}>
-                    {item.badge}
+                    {(badges[item.id] || 0) > 0 ? badges[item.id] : item.badge}
                   </span>
                 )}
               </button>
@@ -127,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
           
           <div className="h-4"></div>
-          <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">外部独立端</span>
+          <span className="px-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-2">全局入口</span>
           
           {externalMenuItems.map((item) => {
             const Icon = item.icon;
@@ -203,7 +213,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </div>
           <div className="text-[10px] text-slate-400 font-mono">
-            <span>日期: 2026/08/25</span>
+            <span>日期: {new Date().toLocaleDateString('zh-CN')}</span>
           </div>
         </div>
       </div>

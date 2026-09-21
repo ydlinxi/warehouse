@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { DBService, formatters } from '../db';
 import {
   Order,
+  InboundPlanLine,
   PositionDemand,
   Inbound,
   Outbound,
@@ -61,9 +62,7 @@ interface InventoryStoreState {
   // DB Business Actions
   addOrder: (order: {
     order_no: string;
-    model: string;
-    order_qty: number;
-    per_pallet: number;
+    lines: InboundPlanLine[];
   }) => Order;
 
   recordInbound: (
@@ -189,12 +188,7 @@ export const useInventoryStore = create<InventoryStoreState>((set, get) => ({
   setTargetOutboundPosition: (pos) => set({ targetOutboundPosition: pos }),
 
   addOrder: (orderData) => {
-    const newOrder = DBService.addOrder(
-      orderData.order_no,
-      orderData.model,
-      orderData.order_qty,
-      orderData.per_pallet
-    );
+    const newOrder = DBService.addOrder(orderData.order_no, orderData.lines);
     get().refreshData();
     return newOrder;
   },

@@ -20,7 +20,7 @@ import {
   Layers,
   ArrowUpDown
 } from 'lucide-react';
-import { formatters } from '../db';
+import { formatters, DBService, QUALITY_OPTIONS } from '../db';
 
 interface PositionLedgerTableProps {
   mode?: 'all' | 'outbound';
@@ -52,9 +52,11 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
   const [quickOutboundPos, setQuickOutboundPos] = useState<Position | null>(null);
   const [selectedDemandId, setSelectedDemandId] = useState<string>('');
   const [outboundQtyInput, setOutboundQtyInput] = useState<number>(100);
-  const [outboundHandler, setOutboundHandler] = useState<string>('刘杰');
-  const [inboundLine, setInboundLine] = useState<string>('线别A-01');
-  const [inboundHandler, setInboundHandler] = useState<string>('张敏');
+  const lineOptions = useMemo(() => DBService.getLines(), []);
+  const handlerOptions = useMemo(() => DBService.getHandlers(), []);
+  const [outboundHandler, setOutboundHandler] = useState<string>(() => DBService.getHandlers()[0] || '');
+  const [inboundLine, setInboundLine] = useState<string>(() => DBService.getLines()[0] || '');
+  const [inboundHandler, setInboundHandler] = useState<string>(() => DBService.getHandlers()[0] || '');
   const [inboundQuality, setInboundQuality] = useState<'OQC验Pass' | '待复检' | '不合格'>('OQC验Pass');
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string>('');
   const [actionErrorMsg, setActionErrorMsg] = useState<string>('');
@@ -188,7 +190,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
         demand.id,
         quickInboundPos.code,
         todayStr,
-        200, // Default 200 pcs
+        demand.planned_qty || 200, // 优先用需求行计划量，兜底 200
         inboundLine,
         inboundHandler,
         inboundQuality,
@@ -365,7 +367,8 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
             <span>空闲可用: <strong className="text-emerald-600 font-mono text-xs">{filterAvailableCount}</strong> 卡位</span>
           </div>
           <div>
-            在库成品总量: <strong className="text-indigo-600 font-mono text-xs">{filterInStockQty.toLocaleString()}</strong> Pcs
+            在架物理总量: <strong className="text-indigo-600 font-mono text-xs">{filterInStockQty.toLocaleString()}</strong> Pcs
+            <span className="text-slate-400 font-normal">（含待复检/不合格；可售口径见「补货预警 → 当前库存」）</span>
           </div>
         </div>
       </div>
@@ -539,6 +542,49 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                               <PackageMinus size={12} />
                               <span>出库</span>
                             </button>
+                            {p.quality === '待复检' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  try {
+                                    updateInbound(p.inbound_id!, { quality: 'OQC验Pass' });
+                                    setActionSuccessMsg(`仓位 [${p.code}] 复检通过，已转为可售库存！`);
+                                    refreshData();
+                                  } catch (err: any) {
+                                    setActionErrorMsg(err.message || '复检转正失败！');
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                                title="复检通过，转为可售"
+                              >
+                                <CheckCircle2 size={12} />
+                                <span>复检通过</span>
+                              </button>
+                            )}
+                            {p.quality === '不合格' && (
+                              <select
+                                defaultValue=""
+                                onChange={(e) => {
+                                  const v = e.target.value as '让步接收' | '退货' | '报废';
+                                  if (!v || !p.inbound_id) return;
+                                  try {
+                                    DBService.disposeInbound(p.inbound_id, v);
+                                    setActionSuccessMsg(`仓位 [${p.code}] 不合格品已按「${v}」处置。`);
+                                    refreshData();
+                                  } catch (err: any) {
+                                    setActionErrorMsg(err.message || '不合格处置失败！');
+                                  }
+                                  e.target.value = '';
+                                }}
+                                className="px-1.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold cursor-pointer focus:outline-none"
+                                title="不合格品处置"
+                              >
+                                <option value="">不合格处置…</option>
+                                <option value="让步接收">让步接收</option>
+                                <option value="退货">退货</option>
+                                <option value="报废">报废</option>
+                              </select>
+                            )}
                           </div>
                         )}
                       </td>
@@ -646,9 +692,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                     onChange={(e) => setInboundLine(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg p-2 bg-white"
                   >
-                    <option value="线别A-01">线别A-01</option>
-                    <option value="线别B-02">线别B-02</option>
-                    <option value="线别C-03">线别C-03</option>
+                    {lineOptions.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
 
@@ -659,9 +703,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                     onChange={(e) => setInboundHandler(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg p-2 bg-white"
                   >
-                    <option value="张敏">张敏</option>
-                    <option value="李强">李强</option>
-                    <option value="陈芳">陈芳</option>
+                    {handlerOptions.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
               </div>
@@ -673,9 +715,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                   onChange={(e) => setInboundQuality(e.target.value as any)}
                   className="w-full border border-slate-200 rounded-lg p-2 bg-white font-bold"
                 >
-                  <option value="OQC验Pass">OQC验Pass</option>
-                  <option value="待复检">待复检</option>
-                  <option value="不合格">不合格</option>
+                  {QUALITY_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}
                 </select>
               </div>
 
@@ -727,6 +767,10 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                   <span>产品：{quickOutboundPos.model}</span>
                   <span>当前在库：<strong className="text-indigo-700">{quickOutboundPos.qty} Pcs</strong></span>
                 </div>
+                <div className="flex justify-between text-[11px] text-slate-600">
+                  <span>品质状态：</span>
+                  <span className={`font-bold ${quickOutboundPos.quality === 'OQC验Pass' ? 'text-emerald-600' : quickOutboundPos.quality === '待复检' ? 'text-amber-600' : 'text-rose-600'}`}>{quickOutboundPos.quality || '未知'}</span>
+                </div>
               </div>
 
               <div>
@@ -749,12 +793,16 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                   onChange={(e) => setOutboundHandler(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg p-2 bg-white font-bold"
                 >
-                  <option value="刘杰">刘杰</option>
-                  <option value="王强">王强</option>
-                  <option value="赵敏">赵敏</option>
+                  {handlerOptions.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
               </div>
 
+              {quickOutboundPos.quality && quickOutboundPos.quality !== 'OQC验Pass' && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-[11px] font-bold flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>该仓位品质为「{quickOutboundPos.quality}」，已冻结不可出库。请先复检通过或走不合格处理流程。</span>
+                </div>
+              )}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
@@ -765,7 +813,12 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-xs cursor-pointer"
+                  disabled={quickOutboundPos.quality ? quickOutboundPos.quality !== 'OQC验Pass' : false}
+                  className={`px-4 py-1.5 font-bold rounded-lg shadow-xs ${
+                    quickOutboundPos.quality && quickOutboundPos.quality !== 'OQC验Pass'
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+                  }`}
                 >
                   确认扣减出库
                 </button>

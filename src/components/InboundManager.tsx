@@ -22,7 +22,7 @@ import {
   Calendar,
   User
 } from 'lucide-react';
-import { DBService, formatters } from '../db';
+import { DBService, formatters, QUALITY_OPTIONS } from '../db';
 import { PositionDemand, Inbound } from '../types';
 
 interface InboundManagerProps {}
@@ -49,7 +49,7 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
       const q = searchQuery.trim().toLowerCase();
       const matchesSearch = !q || 
                             d.order_no.toLowerCase().includes(q) || 
-                            d.model.toLowerCase().includes(q);
+                            (d.model || d.product || '').toLowerCase().includes(q);
       return isUnallocated && matchesSearch;
     });
   }, [demands, searchQuery]);
@@ -141,7 +141,8 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
           const order = orders.find(o => o.id === d.order_id);
           next[d.id] = {
             positionCode: '',
-            actualQty: order ? order.per_pallet : 200,
+            // 优先使用该托的计划数量（多 SKU 计划的末托为余数），再退回容量/默认
+            actualQty: d.planned_qty ?? d.maxPerPallet ?? (order ? order.per_pallet : 200),
             inboundDate: today,
             selectedLine: lines[0] || '线别A-01',
             selectedHandler: handlers[0] || '张敏',
@@ -308,7 +309,7 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
           nextInputs[d.id] = {
             ...(nextInputs[d.id] || {
               positionCode: '',
-              actualQty: 200,
+              actualQty: d.planned_qty ?? 200,
               inboundDate: formatters.dbDate(),
               selectedLine: lines[0] || '',
               selectedHandler: handlers[0] || '',
@@ -411,10 +412,11 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
       } else {
         const qty = Number(inp.actualQty);
         const orderInfo = ordersWithMetrics.find(o => o.id === d.order_id);
+        const cap = d.maxPerPallet || orderInfo?.per_pallet || 0;
+        if (cap > 0 && qty > cap) {
+          invalidRows.push(`计划 ${d.order_no} 托盘 #${d.seq} 入库量(${qty})超单托上限(${cap})`);
+        }
         if (orderInfo) {
-          if (qty > orderInfo.per_pallet) {
-             invalidRows.push(`订单 ${d.order_no} 托盘 #${d.seq} 入库量(${qty})超单托上限(${orderInfo.per_pallet})`);
-          }
           const currentGroupQty = groupedQtys.get(d.order_no) || 0;
           groupedQtys.set(d.order_no, currentGroupQty + qty);
         }
@@ -733,9 +735,7 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                   <th className="py-1.5 px-1 text-center">
                     <select value={batchFields.qualityResult} onChange={(e) => setBatchFields({...batchFields, qualityResult: e.target.value as any})} className="w-24 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal bg-white focus:outline-none focus:border-indigo-400">
                       <option value="">不更改</option>
-                      <option value="OQC验Pass">OQC验Pass</option>
-                      <option value="特采">特采</option>
-                      <option value="返工复验">返工复验</option>
+                      {QUALITY_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}
                     </select>
                   </th>
                   <th className="py-1.5 px-1">
@@ -770,6 +770,10 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                   const allCheckedInGroup = groupDemands.every(d => rowInputs[d.id]?.checked);
                   const orderInfo = ordersWithMetrics.find(o => o.order_no === orderNo);
                   const progressPercent = orderInfo ? Math.min(100, Math.round((orderInfo.inbound_qty / orderInfo.order_qty) * 100)) : 0;
+                  const nameSet = new Set(groupDemands.map(d => d.model || d.product || '未命名'));
+                  const modelLabel = nameSet.size > 1 ? `多产品 (${nameSet.size})` : (groupDemands[0]?.model || groupDemands[0]?.product || '未命名');
+                  const isPurchase = groupDemands[0]?.source === 'purchase';
+                  const srcLabel = isPurchase ? '采购到货' : '成品订单';
                   
                   return (
                     <React.Fragment key={orderNo}>
@@ -806,8 +810,11 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                             <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-[10px] font-bold">
                               共 {groupDemands.length} 托
                             </span>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${isPurchase ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                              {srcLabel}
+                            </span>
                             <span className="text-[10px] text-slate-500 font-medium pl-1">
-                              产品型号: {groupDemands[0]?.model}
+                              产品: {modelLabel}
                             </span>
                             {orderInfo && (
                               <div className="flex items-center gap-2 ml-4">
@@ -827,7 +834,7 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                       {!isCollapsed && groupDemands.map((demand, idx) => {
                         const input = rowInputs[demand.id] || {
                           positionCode: '',
-                          actualQty: 200,
+                          actualQty: demand.planned_qty ?? 200,
                           inboundDate: formatters.dbDate(),
                           selectedLine: lines[0] || '',
                           selectedHandler: handlers[0] || '',
@@ -860,7 +867,7 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                             </td>
                             <td className="py-2 px-3">
                               <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold text-[10px]">
-                                {demand.model}
+                                {demand.model || demand.product || '—'}
                               </span>
                             </td>
                             <td className="py-2 px-3 text-center">
