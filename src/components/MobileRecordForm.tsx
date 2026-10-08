@@ -4,7 +4,7 @@ import { formatters, DBService, QUALITY_OPTIONS } from '../db';
 import { PackagePlus, PackageMinus, CheckCircle2, AlertCircle, Search, QrCode, Camera, X } from 'lucide-react';
 
 export const MobileRecordForm: React.FC = () => {
-  const { stats, positions, demands, recordInbound, recordOutbound } = useInventoryStore();
+  const { positions, demands, recordInbound, recordOutbound } = useInventoryStore();
   const [activeMode, setActiveMode] = useState<'inbound' | 'outbound' | 'search'>('inbound');
   
   // Local form state
@@ -65,7 +65,8 @@ export const MobileRecordForm: React.FC = () => {
 
   const startScan = async () => {
     setScanError('');
-    const BD = (window as any).BarcodeDetector;
+    type BarcodeDetectorLike = { detect: (source: unknown) => Promise<Array<{ rawValue: string }>> };
+    const BD = (window as unknown as { BarcodeDetector?: new (options?: { formats?: string[] }) => BarcodeDetectorLike }).BarcodeDetector;
     if (!BD || !navigator.mediaDevices?.getUserMedia) {
       setScanOpen(true);
       setScanError('当前浏览器不支持摄像头扫码，请使用扫码枪扫描或手动选择仓位。');
@@ -95,8 +96,8 @@ export const MobileRecordForm: React.FC = () => {
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
-    } catch (e: any) {
-      setScanError('无法访问摄像头：' + (e?.message || '权限被拒绝'));
+    } catch (e) {
+      setScanError('无法访问摄像头：' + ((e as Error)?.message || '权限被拒绝'));
     }
   };
 
@@ -169,8 +170,8 @@ export const MobileRecordForm: React.FC = () => {
       setDemandId('');
       setQty('');
       setNote('');
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || '操作失败，请重试' });
+    } catch (err) {
+      setMessage({ type: 'error', text: (err as Error).message || '操作失败，请重试' });
     }
   };
 
@@ -351,7 +352,7 @@ export const MobileRecordForm: React.FC = () => {
                   <label className="text-xs font-bold text-slate-700 block">品质状态</label>
                   <select
                     value={quality}
-                    onChange={(e) => setQuality(e.target.value as any)}
+                    onChange={(e) => setQuality(e.target.value as 'OQC验Pass' | '待复检' | '不合格')}
                     className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 bg-white"
                   >
                     {QUALITY_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}

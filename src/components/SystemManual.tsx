@@ -7,7 +7,7 @@ import {
   Smartphone, 
   Search, 
   ShieldCheck,
-  Layers
+  
 } from 'lucide-react';
 
 export const SystemManual: React.FC = () => {

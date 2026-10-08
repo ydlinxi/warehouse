@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { DBService, formatters } from '../db';
+import { DBService } from '../db';
 import {
   Order,
   InboundPlanLine,

@@ -14,12 +14,13 @@ import {
   PackageMinus,
   ArrowRight,
   PlusCircle,
-  QrCode,
+  
   Sparkles,
   ShoppingCart,
   Bell
 } from 'lucide-react';
 import { formatters, DBService } from '../db';
+import { Position } from '../types';
 
 interface GlobalSearchModalProps {
   onNavigateTab?: (tab: string) => void;
@@ -32,14 +33,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
     positions,
     orders,
     inbounds,
-    demands,
     recordOutbound,
-    recordInbound,
     refreshData
   } = useInventoryStore();
 
   const [query, setQuery] = useState('');
-  const [selectedPosition, setSelectedPosition] = useState<any | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [outboundQty, setOutboundQty] = useState<number>(100);
   const [feedbackMsg, setFeedbackMsg] = useState<string>('');
 
@@ -113,7 +112,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
 
   if (!isSearchModalOpen) return null;
 
-  const handleQuickOutbound = (p: any) => {
+  const handleQuickOutbound = (p: Position) => {
     if (!p.inbound_id) return;
     try {
       recordOutbound(
@@ -126,8 +125,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
       setFeedbackMsg(`⚡ 仓位 [${p.code}] 已成功扣减出库 ${outboundQty} Pcs！`);
       setSelectedPosition(null);
       refreshData();
-    } catch (err: any) {
-      setFeedbackMsg(`❌ 出库失败: ${err.message}`);
+    } catch (err) {
+      setFeedbackMsg(`❌ 出库失败: ${(err as Error).message}`);
     }
   };
 
@@ -150,7 +149,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ onNavigate
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="极速万能检索：输入仓位码(如 B02-01)、订单号(如 PO26)、产品型号(如 PRO-X1)..."
+            placeholder="极速万能检索：输入仓位码(如 B02-01)、订单号(如 PO26)、产品型号(如 OVEN-X1)..."
             className="w-full text-sm font-semibold text-slate-800 placeholder-slate-400 bg-transparent focus:outline-none"
           />
           {query && (

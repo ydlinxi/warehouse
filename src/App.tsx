@@ -3,17 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { ProcurementModule } from './components/ProcurementModule';
-import { InboundModule } from './components/InboundModule';
-import { OutboundManager } from './components/OutboundManager';
-import { WarehouseModule } from './components/WarehouseModule';
-import { PositionMap } from './components/PositionMap';
-import { SystemConfig } from './components/SystemConfig';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
-import { MobileRecordForm } from './components/MobileRecordForm';
-import { SystemManual } from './components/SystemManual';
+
+// ===== 路由级代码分割：各业务视图按需加载（与 Module 层薄容器结构契合） =====
+const ProcurementModule = lazy(() => import('./components/ProcurementModule').then(m => ({ default: m.ProcurementModule })));
+const InboundModule = lazy(() => import('./components/InboundModule').then(m => ({ default: m.InboundModule })));
+const OutboundManager = lazy(() => import('./components/OutboundManager').then(m => ({ default: m.OutboundManager })));
+const WarehouseModule = lazy(() => import('./components/WarehouseModule').then(m => ({ default: m.WarehouseModule })));
+const PositionMap = lazy(() => import('./components/PositionMap').then(m => ({ default: m.PositionMap })));
+const SystemConfig = lazy(() => import('./components/SystemConfig').then(m => ({ default: m.SystemConfig })));
+const MobileRecordForm = lazy(() => import('./components/MobileRecordForm').then(m => ({ default: m.MobileRecordForm })));
+const SystemManual = lazy(() => import('./components/SystemManual').then(m => ({ default: m.SystemManual })));
 
 /**
  * 旧 tab 标识 → 新四大业务模块 + 子页签 的兼容映射。
@@ -36,7 +38,7 @@ const TAB_MAP: Record<string, { tab: string; sub: string }> = {
 
 import { useInventoryStore } from './store/useInventoryStore';
 import { DBService } from './db';
-import { Shield, AlertTriangle, Clock, Search, Menu } from 'lucide-react';
+import { Shield, AlertTriangle, Search, Menu } from 'lucide-react';
 
 export default function App() {
   const params = new URLSearchParams(window.location.search);
@@ -88,8 +90,8 @@ export default function App() {
         goTab(e.detail);
       }
     };
-    window.addEventListener('navigate-tab' as any, handleNavigation);
-    return () => window.removeEventListener('navigate-tab' as any, handleNavigation);
+    window.addEventListener('navigate-tab', handleNavigation as EventListener);
+    return () => window.removeEventListener('navigate-tab', handleNavigation as EventListener);
   }, []);
 
   // 各模块待办角标（切 tab 时刷新）
@@ -209,7 +211,9 @@ export default function App() {
 
         {/* Dynamic Inner Workspace Section */}
         <main id="app-workspace-body" className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50/50 z-20">
-          {renderContent()}
+          <Suspense fallback={<div className="p-8 text-center text-sm text-slate-400">加载中…</div>}>
+            {renderContent()}
+          </Suspense>
         </main>
       </div>
 

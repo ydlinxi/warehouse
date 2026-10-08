@@ -10,10 +10,10 @@ import {
   Eye,
   X,
   FileText,
-  ChevronRight
+  
 } from 'lucide-react';
 import { DBService, formatters } from '../db';
-import { InventoryMonthRecord, Inbound, Outbound } from '../types';
+import { InventoryMonthRecord } from '../types';
 
 export const InventorySummary: React.FC = () => {
   const _now = new Date();

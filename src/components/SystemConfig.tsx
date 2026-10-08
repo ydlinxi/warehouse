@@ -119,7 +119,7 @@ export const SystemConfig: React.FC = () => {
       if (inb.position_code.startsWith(code)) {
         const codeMatch = inb.position_code.match(/^([A-Z])(\d{2})-(\d{2})$/);
         if (codeMatch) {
-          const [_, z, rStr, cStr] = codeMatch;
+          const [_, , rStr, cStr] = codeMatch;
           const r = parseInt(rStr, 10);
           const c = parseInt(cStr, 10);
           if (r > updatedRows || c > updatedCols) {
@@ -228,7 +228,10 @@ export const SystemConfig: React.FC = () => {
     if (!name) { setErrorMsg('型号名称不能为空！'); return; }
     if (models.some(m => m.name === name)) { setErrorMsg(`型号 ${name} 已存在！`); return; }
     if (!newModelPerPallet || newModelPerPallet < 1) { setErrorMsg('默认每托数量必须大于 0！'); return; }
+    // itemId（SPU 编码）是 ProductModel 的必填项：按现有型号最大编号 +1 生成，与 DEFAULT_MODELS 的 SPU0001… 同规则
+    const nextSpu = Math.max(0, ...models.map(m => Number(String(m.itemId || '').replace(/\D/g, '')) || 0)) + 1;
     const updated = [...models, {
+      itemId: 'SPU' + String(nextSpu).padStart(4, '0'),
       name,
       default_per_pallet: Number(newModelPerPallet),
       safety_stock: Number(newModelSafety) || Number(newModelPerPallet) * 6

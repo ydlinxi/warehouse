@@ -6,25 +6,25 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Search,
-  Filter,
+  
   Layers,
-  Box,
-  CheckCircle,
-  AlertTriangle,
+  
+  
+  
   ZoomIn,
   ZoomOut,
   ChevronDown,
   Info,
-  Check,
+  
   X
 } from 'lucide-react';
-import { DBService, formatters } from '../db';
-import { Position, Order } from '../types';
+import { DBService } from '../db';
+
 import { PositionLedgerTable } from './PositionLedgerTable';
 
 export const PositionMap: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'ledger'>('grid');
-  const [warehouseConfig, setWarehouseConfig] = useState(() => DBService.getWarehouseConfig());
+  const [warehouseConfig] = useState(() => DBService.getWarehouseConfig());
   const [selectedZone, setSelectedZone] = useState('A');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCellCode, setSelectedCellCode] = useState<string | null>(null);
@@ -88,16 +88,7 @@ export const PositionMap: React.FC = () => {
   const maxRows = activeZoneObj.rows;
   const maxCols = activeZoneObj.cols;
 
-  // Selected Order object and metrics
-  const activeOrder = useMemo(() => {
-    return orders.find(o => o.order_no === selectedOrderNo) || {
-      order_no: selectedOrderNo,
-      model: 'MX-400',
-      stock_qty: 180,
-      order_qty: 240,
-      customer_code: 'PO26'
-    };
-  }, [orders, selectedOrderNo]);
+
 
   // Positions belonging to the selected Order (for left table) - 100% Real DB Data
   const orderPositionsTable = useMemo(() => {
@@ -209,10 +200,7 @@ export const PositionMap: React.FC = () => {
     return filteredOrderPositionsTable;
   }, [searchQuery, globalSearchResults, filteredOrderPositionsTable]);
 
-  // Non-zero occupied locations array for quick pill tag bar
-  const activeStockLocations = useMemo(() => {
-    return orderPositionsTable.filter(r => r.qty > 0);
-  }, [orderPositionsTable]);
+
 
   // Total inventory quantity for the selected order
   const orderTotalStock = useMemo(() => {
@@ -311,6 +299,7 @@ export const PositionMap: React.FC = () => {
 
         <div className="flex items-center bg-slate-800 p-1 rounded-xl gap-1 shrink-0">
           <button
+            id="view-grid"
             type="button"
             onClick={() => setViewMode('grid')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
@@ -322,6 +311,7 @@ export const PositionMap: React.FC = () => {
             <span>🗺️ 可视化仓位网格</span>
           </button>
           <button
+            id="view-ledger"
             type="button"
             onClick={() => setViewMode('ledger')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
@@ -560,11 +550,14 @@ export const PositionMap: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索仓位/订单/型号/数量 (例 B03-01, PO260901, MX-400 模块 黑色)..."
+              placeholder="搜索仓位/订单/型号/数量 (例 B03-01, PO260901, MICRO-400 微波炉 黑色)..."
               className="pl-7 pr-2 py-1 text-xs bg-white border border-slate-300 rounded font-mono uppercase focus:outline-none focus:ring-1 focus:ring-emerald-500 w-64"
             />
             {searchQuery && (
               <button
+                id="clear-search"
+                type="button"
+                aria-label="清空搜索条件"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
@@ -592,6 +585,9 @@ export const PositionMap: React.FC = () => {
           {/* Zoom */}
           <div className="flex items-center border border-slate-300 rounded bg-white">
             <button
+              id="zoom-out"
+              type="button"
+              aria-label="缩小"
               onClick={() => setZoomScale(s => Math.max(0.7, s - 0.1))}
               className="px-1.5 py-0.5 text-slate-600 hover:bg-slate-100"
               title="缩小"
@@ -602,6 +598,9 @@ export const PositionMap: React.FC = () => {
               {Math.round(zoomScale * 100)}%
             </span>
             <button
+              id="zoom-in"
+              type="button"
+              aria-label="放大"
               onClick={() => setZoomScale(s => Math.min(1.3, s + 0.1))}
               className="px-1.5 py-0.5 text-slate-600 hover:bg-slate-100"
               title="放大"
@@ -637,6 +636,8 @@ export const PositionMap: React.FC = () => {
 
             <div className="flex items-center space-x-1.5">
               <button
+                id="toggle-highlight"
+                type="button"
                 onClick={() => setHighlightOrderSlots(!highlightOrderSlots)}
                 className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
                   highlightOrderSlots
@@ -808,7 +809,7 @@ export const PositionMap: React.FC = () => {
                           const tableItem = orderPositionsTable.find(t => t.code === code);
 
                           const isOccupied = pos ? pos.status === 'occupied' : (tableItem && tableItem.qty > 0);
-                          const isMatchSelectedOrder = (pos?.order_no === selectedOrderNo && pos?.qty > 0) || (tableItem && tableItem.qty > 0);
+                          const isMatchSelectedOrder = (pos?.order_no === selectedOrderNo && (pos?.qty ?? 0) > 0) || (tableItem && tableItem.qty > 0);
                           const isSelectedCell = selectedCellCode === code;
                           const q = searchQuery.trim().toUpperCase();
                           const inbItem = inbounds.find(i => i.position_code === code);
@@ -816,7 +817,7 @@ export const PositionMap: React.FC = () => {
                             code.toUpperCase().includes(q) ||
                             (pos?.order_no && pos.order_no.toUpperCase().includes(q)) ||
                             (pos?.model && pos.model.toUpperCase().includes(q)) ||
-                            (pos?.qty !== null && String(pos.qty).includes(q)) ||
+                            (pos?.qty != null && String(pos.qty).includes(q)) ||
                             (inbItem?.order_no && inbItem.order_no.toUpperCase().includes(q)) ||
                             (inbItem?.model && inbItem.model.toUpperCase().includes(q)) ||
                             (tableItem?.order_no && tableItem.order_no.toUpperCase().includes(q)) ||

@@ -12,13 +12,13 @@ import {
   Filter,
   CheckCircle2,
   AlertCircle,
-  PackageCheck,
+  
   PackageMinus,
   PlusCircle,
-  Edit,
+  
   X,
   Layers,
-  ArrowUpDown
+  
 } from 'lucide-react';
 import { formatters, DBService, QUALITY_OPTIONS } from '../db';
 
@@ -30,7 +30,6 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
   const {
     positions,
     demands,
-    inbounds,
     warehouseConfig,
     recordInbound,
     recordOutbound,
@@ -110,7 +109,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
   }, [filteredPositions, currentPage, pageSize]);
 
   // Reset page when filter changes
-  const handleFilterChange = (setter: Function, val: any) => {
+  const handleFilterChange = <T,>(setter: (v: T) => void, val: T) => {
     setter(val);
     setCurrentPage(1);
   };
@@ -200,8 +199,8 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
       setActionSuccessMsg(`卡位 [${quickInboundPos.code}] 已成功上架订单 ${demand.order_no} 托盘 #${demand.seq}！`);
       setQuickInboundPos(null);
       setSelectedDemandId('');
-    } catch (err: any) {
-      setActionErrorMsg(err.message || '快捷上架失败！');
+    } catch (err) {
+      setActionErrorMsg((err as Error).message || '快捷上架失败！');
     }
   };
 
@@ -224,8 +223,8 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
 
       setActionSuccessMsg(`仓位 [${quickOutboundPos.code}] 扣减出库 ${outboundQtyInput} Pcs 成功！`);
       setQuickOutboundPos(null);
-    } catch (err: any) {
-      setActionErrorMsg(err.message || '快捷出库失败！');
+    } catch (err) {
+      setActionErrorMsg((err as Error).message || '快捷出库失败！');
     }
   };
 
@@ -343,7 +342,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
             <Search size={14} className="absolute left-3 text-slate-400" />
             <input
               type="text"
-              placeholder="搜索仓位码 (如 B02-01)、订单号 (如 PO26)、产品型号 (如 PRO-X1)..."
+              placeholder="搜索仓位码 (如 B02-01)、订单号 (如 PO26)、产品型号 (如 OVEN-X1)..."
               value={searchQuery}
               onChange={(e) => handleFilterChange(setSearchQuery, e.target.value)}
               className="w-full pl-8 pr-8 py-1.5 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium"
@@ -550,8 +549,8 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                                     updateInbound(p.inbound_id!, { quality: 'OQC验Pass' });
                                     setActionSuccessMsg(`仓位 [${p.code}] 复检通过，已转为可售库存！`);
                                     refreshData();
-                                  } catch (err: any) {
-                                    setActionErrorMsg(err.message || '复检转正失败！');
+                                  } catch (err) {
+                                    setActionErrorMsg((err as Error).message || '复检转正失败！');
                                   }
                                 }}
                                 className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
@@ -571,8 +570,8 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                                     DBService.disposeInbound(p.inbound_id, v);
                                     setActionSuccessMsg(`仓位 [${p.code}] 不合格品已按「${v}」处置。`);
                                     refreshData();
-                                  } catch (err: any) {
-                                    setActionErrorMsg(err.message || '不合格处置失败！');
+                                  } catch (err) {
+                                    setActionErrorMsg((err as Error).message || '不合格处置失败！');
                                   }
                                   e.target.value = '';
                                 }}
@@ -712,7 +711,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">品质检验状态</label>
                 <select
                   value={inboundQuality}
-                  onChange={(e) => setInboundQuality(e.target.value as any)}
+                  onChange={(e) => setInboundQuality(e.target.value as 'OQC验Pass' | '待复检' | '不合格')}
                   className="w-full border border-slate-200 rounded-lg p-2 bg-white font-bold"
                 >
                   {QUALITY_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}

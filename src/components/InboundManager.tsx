@@ -13,17 +13,19 @@ import {
   Square,
   Zap,
   ArrowRight,
-  RotateCcw,
   X,
   ChevronDown,
   ChevronRight,
   LayoutGrid,
   History,
-  Calendar,
-  User
+  
+  
 } from 'lucide-react';
-import { DBService, formatters, QUALITY_OPTIONS } from '../db';
+import { DBService, formatters } from '../db';
 import { PositionDemand, Inbound } from '../types';
+import { BatchSettingsRow, BatchFields } from './inbound/BatchSettingsRow';
+import { InboundRecordsPanel } from './inbound/InboundRecordsPanel';
+import { RollbackInboundModal } from './inbound/RollbackInboundModal';
 
 interface InboundManagerProps {}
 
@@ -33,7 +35,6 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
   const [inbounds, setInbounds] = useState<Inbound[]>(() => DBService.getInbounds());
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -53,18 +54,6 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
       return isUnallocated && matchesSearch;
     });
   }, [demands, searchQuery]);
-
-  const filteredInbounds = useMemo(() => {
-    const q = historySearchQuery.trim().toLowerCase();
-    if (!q) return inbounds;
-    return inbounds.filter(i =>
-      i.order_no.toLowerCase().includes(q) ||
-      i.model.toLowerCase().includes(q) ||
-      i.position_code.toLowerCase().includes(q) ||
-      i.handler.toLowerCase().includes(q) ||
-      (i.note && i.note.toLowerCase().includes(q))
-    );
-  }, [inbounds, historySearchQuery]);
 
   const demandsByOrder = useMemo(() => {
     const groups: Record<string, PositionDemand[]> = {};
@@ -185,14 +174,17 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
     }));
   };
 
-  const [batchFields, setBatchFields] = useState({
+  // qualityResult 用 '' 表示「不更改」（哨兵值），故类型必须显式含 ''
+  const [batchFields, setBatchFields] = useState<BatchFields>({
     actualQty: '',
     inboundDate: formatters.dbDate(),
     selectedLine: lines[0] || '线别A-01',
     selectedHandler: handlers[0] || '张敏',
-    qualityResult: 'OQC验Pass' as Inbound['quality'],
+    qualityResult: 'OQC验Pass',
     note: ''
   });
+
+  const changeBatch = (patch: Partial<BatchFields>) => setBatchFields(prev => ({ ...prev, ...patch }));
 
   const resetBatchFields = () => {
     setBatchFields({
@@ -237,7 +229,7 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
 
   const currentlySelectedCodes = useMemo(() => {
     const codes = new Set<string>();
-    Object.values(rowInputs).forEach((input: any) => {
+    Object.values(rowInputs).forEach(input => {
       if (input.positionCode) {
         codes.add(input.positionCode);
       }
@@ -365,8 +357,8 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
 
       setSuccessMsg(`上架成功！订单 ${demand.order_no} 托盘 #${demand.seq} 已绑定定位至 [${code}]`);
       refreshData();
-    } catch (err: any) {
-      setErrorMsg(`[托盘 #${demand.seq}] ${err.message || '上架入库失败！'}`);
+    } catch (err) {
+      setErrorMsg(`[托盘 #${demand.seq}] ${(err as Error).message || '上架入库失败！'}`);
     }
   };
 
@@ -489,8 +481,8 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
           inp.note
         );
         successCount++;
-      } catch (err: any) {
-        errors.push(`托盘 #${d.seq}: ${err.message}`);
+      } catch (err) {
+        errors.push(`托盘 #${d.seq}: ${(err as Error).message}`);
       }
     });
 
@@ -520,8 +512,8 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
       setSuccessMsg(`已成功回退订单 ${inboundToRollback.order_no} 托盘 #${inboundToRollback.seq} 的入库记录！原卡位 [${inboundToRollback.position_code}] 已释放，托盘已返回待分配。`);
       refreshData();
       setInboundToRollback(null);
-    } catch (err: any) {
-      setErrorMsg(err.message || '回退入库记录失败！');
+    } catch (err) {
+      setErrorMsg((err as Error).message || '回退入库记录失败！');
       setInboundToRollback(null);
     }
   };
@@ -706,53 +698,14 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
                 <th className="py-2.5 px-3 text-center w-20">操作</th>
               </tr>
               {pendingDemands.length > 0 && (
-                <tr className="bg-indigo-50/60 border-b border-indigo-100">
-                  <th className="py-1.5 px-3"></th>
-                  <th colSpan={4} className="py-1.5 px-3 text-right text-indigo-700 font-bold text-[11px]">
-                    批量设置选中项 👉
-                  </th>
-                  <th className="py-1.5 px-3 text-[10px] text-slate-400 font-medium">
-                    (仓位需独立分配)
-                  </th>
-                  <th className="py-1.5 px-1 text-center">
-                    <input type="number" placeholder="数量" value={batchFields.actualQty} onChange={(e) => setBatchFields({...batchFields, actualQty: e.target.value})} className="w-20 border border-indigo-200 rounded px-1.5 py-1 text-[10px] font-normal focus:outline-none focus:border-indigo-400" />
-                  </th>
-                  <th className="py-1.5 px-1 text-center">
-                    <input type="date" value={batchFields.inboundDate} onChange={(e) => setBatchFields({...batchFields, inboundDate: e.target.value})} className="w-24 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal focus:outline-none focus:border-indigo-400" />
-                  </th>
-                  <th className="py-1.5 px-1 text-center">
-                    <select value={batchFields.selectedLine} onChange={(e) => setBatchFields({...batchFields, selectedLine: e.target.value})} className="w-24 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal bg-white focus:outline-none focus:border-indigo-400">
-                      <option value="">不更改</option>
-                      {lines.map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                  </th>
-                  <th className="py-1.5 px-1 text-center">
-                    <select value={batchFields.selectedHandler} onChange={(e) => setBatchFields({...batchFields, selectedHandler: e.target.value})} className="w-20 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal bg-white focus:outline-none focus:border-indigo-400">
-                      <option value="">不更改</option>
-                      {handlers.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                  </th>
-                  <th className="py-1.5 px-1 text-center">
-                    <select value={batchFields.qualityResult} onChange={(e) => setBatchFields({...batchFields, qualityResult: e.target.value as any})} className="w-24 border border-indigo-200 rounded px-1 py-1 text-[10px] font-normal bg-white focus:outline-none focus:border-indigo-400">
-                      <option value="">不更改</option>
-                      {QUALITY_OPTIONS.map(q => <option key={q} value={q}>{q}</option>)}
-                    </select>
-                  </th>
-                  <th className="py-1.5 px-1">
-                    <input type="text" placeholder="批量备注..." value={batchFields.note} onChange={(e) => setBatchFields({...batchFields, note: e.target.value})} className="w-full border border-indigo-200 rounded px-2 py-1 text-[10px] font-normal focus:outline-none focus:border-indigo-400" />
-                  </th>
-                  <th className="py-1.5 px-2 text-center">
-                    <div className="flex flex-col gap-1">
-                      <button onClick={applyBatchFields} className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1.5 rounded text-[11px] font-bold shadow-sm transition-colors cursor-pointer w-full flex items-center justify-center gap-1">
-                        <CheckSquare size={12} />
-                        应用
-                      </button>
-                      <button onClick={resetBatchFields} className="bg-slate-200 hover:bg-slate-300 text-slate-600 px-2 py-1 rounded text-[10px] font-bold shadow-sm transition-colors cursor-pointer w-full flex items-center justify-center">
-                        清空
-                      </button>
-                    </div>
-                  </th>
-                </tr>
+                <BatchSettingsRow
+                  batchFields={batchFields}
+                  onChange={changeBatch}
+                  lines={lines}
+                  handlers={handlers}
+                  onApply={applyBatchFields}
+                  onReset={resetBatchFields}
+                />
               )}
             </thead>
 
@@ -1036,132 +989,16 @@ export const InboundManager: React.FC<InboundManagerProps> = () => {
 
       ) : (
         /* History Records Tab */
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/55 shrink-0">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">历史入库明细与品质追溯 ({filteredInbounds.length})</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">完整记录成品入库卡板位、生产线别与 OQC 检验结果，支持修改与撤销追溯。</p>
-            </div>
-            <div className="relative w-full sm:w-72">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={historySearchQuery}
-                onChange={(e) => setHistorySearchQuery(e.target.value)}
-                placeholder="搜索订单号 / 型号 / 仓位 / 经办人..."
-                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div className="overflow-x-auto max-h-[520px]">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                <tr>
-                  <th className="py-3 px-4 w-12">序号</th>
-                  <th className="py-3 px-4">入库日期</th>
-                  <th className="py-3 px-4">关联订单号</th>
-                  <th className="py-3 px-4">产品型号</th>
-                  <th className="py-3 px-4 text-center">卡板序号</th>
-                  <th className="py-3 px-4 text-center">上架仓位码</th>
-                  <th className="py-3 px-4 text-right">实际入库量</th>
-                  <th className="py-3 px-4 text-center">生产线别</th>
-                  <th className="py-3 px-4 text-center">品质检验</th>
-                  <th className="py-3 px-4 text-center">经办人</th>
-                  <th className="py-3 px-4">备注说明</th>
-                  <th className="py-3 px-4 text-center w-24">操作管理</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 text-xs">
-                {filteredInbounds.length === 0 ? (
-                  <tr>
-                    <td colSpan={12} className="py-16 text-center text-slate-400 text-xs">
-                      <Import size={36} className="mx-auto text-slate-300 mb-2" />
-                      暂无符合条件的入库明细记录
-                    </td>
-                  </tr>
-                ) : (
-                  [...filteredInbounds].reverse().map((inb, idx) => (
-                    <tr key={inb.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-2.5 px-4 font-mono text-slate-400 text-[10px]">#{idx + 1}</td>
-                      <td className="py-2.5 px-4 font-semibold text-slate-600">{formatters.date(inb.inbound_date)}</td>
-                      <td className="py-2.5 px-4 font-bold font-mono text-indigo-600">{inb.order_no}</td>
-                      <td className="py-2.5 px-4">
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold text-[10px]">{inb.model}</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-center font-bold text-slate-500">#{inb.seq}</td>
-                      <td className="py-2.5 px-4 text-center">
-                        <span className="font-bold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{inb.position_code}</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-800">{formatters.number(inb.actual_qty)} Pcs</td>
-                      <td className="py-2.5 px-4 text-center font-medium text-slate-600">{inb.line}</td>
-                      <td className="py-2.5 px-4 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          inb.quality === 'OQC验Pass' ? 'bg-emerald-100 text-emerald-700' :
-                          inb.quality === '待复检' ? 'bg-amber-100 text-amber-700' :
-                          'bg-rose-100 text-rose-700'
-                        }`}>
-                          {inb.quality}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4 text-center text-slate-600 font-medium">{inb.handler}</td>
-                      <td className="py-2.5 px-4 text-slate-400 text-[11px] max-w-xs truncate" title={inb.note || '无'}>
-                        {inb.note || <span className="text-slate-300 italic">-</span>}
-                      </td>
-                      <td className="py-2.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleRollbackInbound(inb)}
-                            className="px-2.5 py-1 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold border border-slate-200"
-                            title="回退记录（释放仓位，托盘回归待分配）"
-                          >
-                            <RotateCcw size={13} className="text-amber-500" />
-                            <span>回退</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <InboundRecordsPanel inbounds={inbounds} onRollback={handleRollbackInbound} />
       )}
 
       {/* Rollback Confirmation Modal */}
       {inboundToRollback && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5">
-              <h3 className="font-bold text-lg text-slate-800 mb-2 flex items-center gap-2">
-                <RotateCcw className="text-amber-500" size={20} />
-                确认回退入库记录？
-              </h3>
-              <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-                确定要回退订单 <strong className="text-slate-700">{inboundToRollback.order_no}</strong> 托盘 <strong className="text-slate-700">#{inboundToRollback.seq}</strong> 的入库记录及相关数据吗？
-              </p>
-              <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-xs mb-6">
-                回退后，该入库记录及相关数据将彻底清除：卡位 <strong className="font-mono">{inboundToRollback.position_code}</strong> 将自动解锁释放，托盘将<strong>重新返回待分配列表</strong>。
-              </div>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setInboundToRollback(null)}
-                  className="px-4 py-2 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={confirmRollbackInbound}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow cursor-pointer transition-colors"
-                >
-                  确认回退
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RollbackInboundModal
+          target={inboundToRollback}
+          onConfirm={confirmRollbackInbound}
+          onClose={() => setInboundToRollback(null)}
+        />
       )}
     </div>
   );

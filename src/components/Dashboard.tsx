@@ -5,15 +5,15 @@
 
 import React from 'react';
 import {
-  TrendingUp,
+  
   AlertTriangle,
   CheckCircle,
-  PackageCheck,
+  
   Calendar,
-  Layers,
-  ArrowUpRight,
-  ArrowDownRight,
-  Clock,
+  
+  
+  
+  
   ArrowRight
 } from 'lucide-react';
 import { DBService, formatters } from '../db';

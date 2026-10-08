@@ -96,7 +96,9 @@ export interface PendingOutbound {
   id: string;
   ecomOrderNo: string;     // 电商订单号
   platform: string;        // 电商平台（淘宝 / 天猫，来源为 PLT-01 淘宝卖家中心，靶场有订单台/物流靶场）
-  model: string;           // 商品型号 / SKU
+  model: string;           // 商品型号 / SKU（电商侧的商品级标题，可能与 WMS 品名口径不同）
+  sku?: string;            // 电商侧 SKU 编码（如淘宝 13 位数字 SKU ID），仅作留痕/核对
+  wmsRef?: string;         // 电商「商家编码」映射到的 WMS SKU（SUP…）；出库据此**精确命中**仓位，避免名称口径不一致导致的兜底
   qty: number;             // 待发货数量
   recipient: string;       // 收货人
   address: string;         // 收货地址
@@ -124,6 +126,7 @@ export interface Position {
   seq?: number | null;
   line?: string | null;
   handler?: string | null;
+  sku?: string | null;   // 该仓位所属 WMS SKU 编码（SUP…）；出库按 SKU 精确匹配时使用
 }
 
 export interface WarehouseZoneConfig {
@@ -211,4 +214,55 @@ export interface PurchasePlanRow {
   palletCount: number;
   status: '待收货建卡板';
   createdAt: string;
+}
+
+// ===== 补货计划（补货预警 → 一键生成的「供应商维度」计划） =====
+export interface ReplenishPlanItem {
+  sku: string;
+  title: string;
+  emoji?: string;
+  spec?: string;
+  stock: number;
+  effectiveStock: number;
+  replenishPoint: number;
+  abundanceThreshold: number;
+  need: number;
+  price: number;
+  isTrigger: boolean;
+}
+
+export interface ReplenishPlan {
+  id: string;                 // 计划编号 RP-YYYYMMDD-NN
+  supplierId: string;
+  supplierName: string;
+  location: string;
+  moq: number | string;
+  triggerSku: { sku?: string; title: string; spec: string; stock: number };
+  items: ReplenishPlanItem[];
+  totalQty: number;
+  totalAmt: number;
+  status: '待确认' | '已生成采购单';
+  poNo: string;
+  createdAt: string;
+}
+
+// 尚未落库的计划草稿（来自补货预警聚合，缺 id / createdAt）
+export type ReplenishPlanDraft = Omit<ReplenishPlan, 'id' | 'createdAt'>;
+
+// ===== 补货预警聚合结果（供应商维度合并，尚未落库为计划） =====
+export interface ReplenishAlertItem {
+  sku: string;
+  title: string;
+  emoji?: string;
+  spec?: string;
+  stock: number;
+  effectiveStock: number;
+  replenishPoint: number;
+  abundanceThreshold: number;
+  need: number;
+}
+
+export interface ReplenishAlertPlan {
+  supplier: { id: string; name: string; location: string; moq: number | string };
+  items: ReplenishAlertItem[];
 }
