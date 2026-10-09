@@ -6,6 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { AlertTriangle, PackagePlus, FileText } from 'lucide-react';
 import { DBService, formatters } from '../db';
+import { toast } from '../utils/toast';
 import { ProductSku, PurchaseOrder, ReplenishPlan, ReplenishPlanItem } from '../types';
 import { BuiltPlan, PlanPreview, PoDraft, genPlanId, safeNum, unitPrice } from './replenish/helpers';
 import { ReplenishAlertsPanel } from './replenish/ReplenishAlertsPanel';
@@ -89,7 +90,7 @@ export const ReplenishManager: React.FC = () => {
 
   const genAllPlans = () => {
     const built = buildPlansFromAlerts();
-    if (!built.length) { alert('当前无需补货的 SKU，暂无补货计划'); return; }
+    if (!built.length) { toast('当前无需补货的 SKU，暂无补货计划', 'warn'); return; }
     const store = DBService.getReplenishPlans();
     built.forEach(b => { b._mode = store.find(p => p.supplierId === b.supplierId && p.status === '待确认') ? '覆盖更新' : '新建'; });
     const createCnt = built.filter(b => b._mode === '新建').length;
@@ -123,7 +124,7 @@ export const ReplenishManager: React.FC = () => {
     persistPlans(next);
     setPreviewModal(null);
     setActiveTab('plan');
-    alert(`补货计划已生成：新建 ${created} 个${updated ? `，覆盖更新 ${updated} 个` : ''}${removed ? `，清除已覆盖 ${removed} 个` : ''}`);
+    toast(`补货计划已生成：新建 ${created} 个${updated ? `，覆盖更新 ${updated} 个` : ''}${removed ? `，清除已覆盖 ${removed} 个` : ''}`);
   };
 
   // ===== 生成采购单（带预交货日 / 付款方式 / 备注 / 可调补货量） =====

@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { Plus, X, Trash2 } from 'lucide-react';
 import { DBService } from '../../db';
+import { toast } from '../../utils/toast';
 import { PurchaseOrder, ProductModel } from '../../types';
 
 interface CreateRow {
@@ -100,10 +101,10 @@ export const PurchaseCreateModal: React.FC<Props> = ({ onCreated, onClose }) => 
 
   const submitCreate = () => {
     const sup = suppliers.find(s => s.id === cSupplierId);
-    if (!sup) { alert('请选择供应商'); return; }
-    if (!cItems.length) { alert('请至少添加一条采购明细（选择已有 SKU 或新建 SKU）'); return; }
+    if (!sup) { toast('请选择供应商', 'warn'); return; }
+    if (!cItems.length) { toast('请至少添加一条采购明细（选择已有 SKU 或新建 SKU）', 'warn'); return; }
     if (!canSubmit) {
-      alert('明细校验未通过：' + (rowErrors.find(e => e.msg)?.msg || '请检查明细'));
+      toast('明细校验未通过：' + (rowErrors.find(e => e.msg)?.msg || '请检查明细'), 'warn');
       return;
     }
     const totalQty = cItems.reduce((s, x) => s + (x.need || 0), 0);

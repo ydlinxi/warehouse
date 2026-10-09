@@ -33,8 +33,8 @@ export const OrderManager: React.FC<OrderManagerProps> = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Expandable Row State
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  // Expandable Row State：支持**同时展开多条**（点一个展开一个、点多个展开多个，非手风琴）
+  const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(new Set());
 
   // Edit State
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -276,8 +276,12 @@ export const OrderManager: React.FC<OrderManagerProps> = () => {
       {/* Orders Table Container */}
       <OrdersTable
         rows={filteredRows}
-        expandedOrderId={expandedOrderId}
-        onToggleExpand={(id) => setExpandedOrderId(expandedOrderId === id ? null : id)}
+        expandedOrderIds={expandedOrderIds}
+        onToggleExpand={(id) => setExpandedOrderIds(prev => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id); else next.add(id);
+          return next;
+        })}
         onEdit={handleEditClick}
         onDelete={handleDeleteClick}
         onBuildPallets={handleBuildPallets}

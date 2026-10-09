@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, CheckCircle, Plus } from 'lucide-react';
 import { DBService } from '../db';
+import { toast } from '../utils/toast';
 import { PurchaseOrder, PurchaseStatus } from '../types';
 import { PurchaseOrdersTable } from './purchase/PurchaseOrdersTable';
 import { PurchaseCreateModal } from './purchase/PurchaseCreateModal';
@@ -26,7 +27,7 @@ export const PurchaseManager: React.FC = () => {
   // 状态推进：待采购 →(付款) 已付款 →(确认到厂) 待收货 →(入库计划收货) 已收货
   const advance = (po: PurchaseOrder, next: PurchaseStatus) => {
     if (next === '待收货' && po.status !== '已付款') {
-      alert('请先登记付款（待采购 → 已付款），再确认到厂。');
+      toast('请先登记付款（待采购 → 已付款），再确认到厂。', 'warn');
       return;
     }
     DBService.updatePurchaseOrder(po.poNo, { status: next });

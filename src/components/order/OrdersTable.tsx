@@ -13,7 +13,7 @@ type OrderRow = ReturnType<typeof DBService.getOrdersWithMetrics>[number];
 
 interface Props {
   rows: OrderRow[];
-  expandedOrderId: string | null;
+  expandedOrderIds: Set<string>;
   onToggleExpand: (id: string) => void;
   onEdit: (order: OrderRow) => void;
   onDelete: (order: OrderRow) => void;
@@ -45,7 +45,7 @@ const getStatusBadge = (status: OrderRow['status']) => {
 };
 
 export const OrdersTable: React.FC<Props> = ({
-  rows, expandedOrderId, onToggleExpand, onEdit, onDelete, onBuildPallets
+  rows, expandedOrderIds, onToggleExpand, onEdit, onDelete, onBuildPallets
 }) => {
   return (
     <div id="orders-table-container" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
@@ -81,7 +81,7 @@ export const OrdersTable: React.FC<Props> = ({
             ) : (
               rows.map((o, index) => {
                 const isPoPlan = o.status === 'pending_receipt';
-                const isExpanded = expandedOrderId === o.id;
+                const isExpanded = expandedOrderIds.has(o.id);
                 const demandRows = isPoPlan ? [] : DBService.getDemands().filter(d => d.order_id === o.id);
                 const purchaseLines = isPoPlan ? DBService.getPurchasePlanRows().filter(r => r.poNo === o.order_no) : [];
                 

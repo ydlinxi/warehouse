@@ -5,6 +5,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { exportXlsx } from '../utils/xlsx';
 import { FileCheck, Download, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { DBService, formatters } from '../db';
 
@@ -94,16 +95,7 @@ export const ReconCenter: React.FC = () => {
     const lines = filtered.map(r => [
       r.poNo, r.supplier, r.sku, r.title, r.unitPrice, r.qtyPo, r.qtyIn, r.qtyQc, r.amtPo, r.amtFn, r.status, r.diff
     ]);
-    const csv = [header, ...lines]
-      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\r\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ERP对账_${formatters.dbDate()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportXlsx(`ERP对账_${formatters.dbDate()}.xlsx`, header, lines);
   };
 
   const statusBadge = (s: ReconStatus) => {

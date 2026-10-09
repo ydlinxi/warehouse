@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { CreditCard, X } from 'lucide-react';
 import { DBService } from '../../db';
+import { toast } from '../../utils/toast';
 import { PurchaseOrder } from '../../types';
 
 const PAY_METHODS = ['预付全款', '预付款30%', '月结30天', '月结60天', '货到付款', '其他'];
@@ -29,7 +30,7 @@ export const PurchasePayModal: React.FC<Props> = ({ po, onPaid, onClose }) => {
       onPaid(`采购单 ${po.poNo} 已登记付款 ¥${((Number(payAmt) || po.totalAmt)).toLocaleString()}（${payMethod}），等待货到厂`);
       onClose();
     } catch (e) {
-      alert((e as Error)?.message || '付款登记失败');
+      toast((e as Error)?.message || '付款登记失败', 'error');
     }
   };
 

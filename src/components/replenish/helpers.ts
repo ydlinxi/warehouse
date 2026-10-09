@@ -6,19 +6,11 @@
 // 补货模块共享工具与本地类型（P2-4b 区块拆分自 ReplenishManager）。
 import { ProductSku, ReplenishPlan, ReplenishPlanDraft } from '../../types';
 
-// CSV 导出（Blob + BOM + 字段转义）
-export const exportCsv = (filename: string, header: string[], rows: (string | number)[][]) => {
-  const csv = [header, ...rows]
-    .map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
-    .join('\r\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-};
+// 导出工具：统一输出真正的 .xlsx（Excel 可直接打开）
+// 说明：原先这里是手写 CSV（Blob + BOM）。现改为委托 utils/xlsx 的 OOXML 生成器，
+// 并把旧的 `exportCsv` 名字保留为别名，避免遗漏既有调用点（行为一致，仅文件格式升级为 xlsx）。
+export { exportXlsx } from '../../utils/xlsx';
+export { exportXlsx as exportCsv } from '../../utils/xlsx';
 
 export const safeNum = (v: unknown) => { const n = Number(v); return isNaN(n) ? 0 : n; };
 // 单价兜底：price 缺失时按 SKU 末位估算（与早前一致）

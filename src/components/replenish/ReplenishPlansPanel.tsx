@@ -8,7 +8,7 @@ import React, { useState, useMemo } from 'react';
 import { PackagePlus, Download, ChevronRight, ChevronLeft } from 'lucide-react';
 import { formatters } from '../../db';
 import { ReplenishPlan, ReplenishPlanItem } from '../../types';
-import { exportCsv, safeNum } from './helpers';
+import { exportXlsx, safeNum } from './helpers';
 
 interface Kpis {
   planTotal: number;
@@ -28,7 +28,8 @@ interface Props {
 export const ReplenishPlansPanel: React.FC<Props> = ({ plans, kpis, onGenerate, onOpenPo, onVoid }) => {
   const [planFilter, setPlanFilter] = useState<'全部' | '待确认' | '已生成采购单'>('全部');
   const [planSearch, setPlanSearch] = useState('');
-  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  // 展开的计划集合：支持**同时展开多条**（点一个展开一个、点多个展开多个，互不影响，非手风琴）
+  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set());
   const [planPage, setPlanPage] = useState(1);
   const [planPageSize, setPlanPageSize] = useState(20);
 
@@ -48,8 +49,8 @@ export const ReplenishPlansPanel: React.FC<Props> = ({ plans, kpis, onGenerate, 
   const planPageSafe = Math.min(planPage, planTotalPages);
   const pagedPlans = planFiltered.slice((planPageSafe - 1) * planPageSize, planPageSafe * planPageSize);
 
-  const exportPlanCsv = () => {
-    exportCsv(`补货计划_${formatters.dbDate()}.csv`,
+  const exportPlanXlsx = () => {
+    exportXlsx(`补货计划_${formatters.dbDate()}.xlsx`,
       ['计划编号', '供应商', '供应商编号', 'SKU数', '建议补货量', '预估金额', '状态', '采购单号', '生成时间'],
       planFiltered.map(p => [
         p.id, p.supplierName, p.supplierId, (p.items || []).length,
@@ -57,7 +58,11 @@ export const ReplenishPlansPanel: React.FC<Props> = ({ plans, kpis, onGenerate, 
       ]));
   };
 
-  const togglePlanDetail = (id: string) => setExpandedPlanId(expandedPlanId === id ? null : id);
+  const togglePlanDetail = (id: string) => setExpandedPlanIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   return (
     <>
@@ -83,7 +88,7 @@ export const ReplenishPlansPanel: React.FC<Props> = ({ plans, kpis, onGenerate, 
               <p className="text-[10px] text-slate-400 mt-0.5">一键生成 · 触发SKU🔴 + 同供应商合并SKU🟡 · 计划状态流转</p>
             </div>
             <div className="flex items-center gap-2 self-start">
-              <button onClick={exportPlanCsv} className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 cursor-pointer"><Download size={14} />导出</button>
+              <button onClick={exportPlanXlsx} className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 cursor-pointer"><Download size={14} />导出</button>
               <button onClick={onGenerate} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"><PackagePlus size={15} />一键生成补货计划</button>
             </div>
           </div>
@@ -114,7 +119,7 @@ export const ReplenishPlansPanel: React.FC<Props> = ({ plans, kpis, onGenerate, 
                   const items = plan.items || [];
                   const triggerCnt = items.filter((x: ReplenishPlanItem) => x.isTrigger).length;
                   const mergedCnt = items.length - triggerCnt;
-                  const open = expandedPlanId === plan.id;
+                  const open = expandedPlanIds.has(plan.id);
                   const stCell = plan.status === '已生成采购单'
                     ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">🟢已生成采购单<div className="font-mono text-[10px] text-slate-400 mt-0.5">{plan.poNo}</div></span>
                     : <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">🟡待确认</span>;

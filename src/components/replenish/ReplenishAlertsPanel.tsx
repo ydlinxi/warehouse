@@ -8,7 +8,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Download, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatters } from '../../db';
 import { ProductSku } from '../../types';
-import { exportCsv, getStockStatus } from './helpers';
+import { exportXlsx, getStockStatus } from './helpers';
 
 interface Kpis {
   needReplenishCount: number;
@@ -55,8 +55,8 @@ export const ReplenishAlertsPanel: React.FC<Props> = ({
   const alertPageSafe = Math.min(alertPage, alertTotalPages);
   const pagedSkus = filteredSkus.slice((alertPageSafe - 1) * alertPageSize, alertPageSafe * alertPageSize);
 
-  const exportAlertCsv = () => {
-    exportCsv(`补货预警_SKU阈值_${formatters.dbDate()}.csv`,
+  const exportAlertXlsx = () => {
+    exportXlsx(`补货预警_SKU阈值_${formatters.dbDate()}.xlsx`,
       ['商品ID', '商品名', 'SKU', 'SKU品名', '规格', '供应商', '当前库存', '充裕值', '补货值', '状态'],
       filteredSkus.map(p => [
         p.itemId, itemNameOf(p.itemId), p.sku, p.title, p.spec || '',
@@ -91,7 +91,7 @@ export const ReplenishAlertsPanel: React.FC<Props> = ({
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
-                onClick={exportAlertCsv}
+                onClick={exportAlertXlsx}
                 className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-600 cursor-pointer shrink-0"
               >
                 <Download size={14} />导出

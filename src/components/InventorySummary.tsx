@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { exportXlsxMatrix } from '../utils/xlsx';
 import {
   Download,
   Filter,
@@ -80,30 +81,14 @@ export const InventorySummary: React.FC = () => {
       ];
     });
 
-    const csvContent = [
+    exportXlsxMatrix(`${title}_导出版.xlsx`, [
       [title],
       [],
       headers,
       ...rows,
       [],
       ['合计', '', '', '', '', '', totalOpening, totalInbound, totalOutbound, totalClosing, '']
-    ].map(e => e.map(val => {
-      // Escape commas and double quotes for safety
-      if (typeof val === 'string') {
-        return `"${val.replace(/"/g, '""')}"`;
-      }
-      return val;
-    }).join(',')).join('\n');
-
-    // Create download link
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${title}_导出版.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    ]);
   };
 
   // Drilled transactions for modal

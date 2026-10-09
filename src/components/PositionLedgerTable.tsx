@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { exportXlsx } from '../utils/xlsx';
 import { useInventoryStore } from '../store/useInventoryStore';
 import { Position } from '../types';
 import {
@@ -160,17 +161,7 @@ export const PositionLedgerTable: React.FC<PositionLedgerTableProps> = ({ mode =
       ];
     });
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `全仓物理仓位明细台账_${formatters.dbDate()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportXlsx(`全仓物理仓位明细台账_${formatters.dbDate()}.xlsx`, headers, rows);
   };
 
   // Execute Quick Inbound from Table
